@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Leaf, Loader2, User } from "lucide-react"; // Added User icon
+import { SiteFooter } from "@/components/layout/SiteFooter";
 
 const registerSchema = z.object({
   displayName: z.string().min(2, { message: "Name must be at least 2 characters."}).max(50, {message: "Name cannot exceed 50 characters."}),
@@ -164,9 +165,9 @@ export default function RegisterPage() {
           </CardFooter>
         </Card>
       </div>
-      <p className="text-xs text-muted-foreground mt-8 text-center">
-         BudgetWise © {new Date().getFullYear()} - Smart Budgeting, Simplified.
-      </p>
+      <div className="mt-auto w-full">
+        <SiteFooter />
+      </div>
     </div>
   );
 }

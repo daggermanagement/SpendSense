@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Leaf, Loader2 } from "lucide-react";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -130,9 +131,9 @@ export default function LoginPage() {
           </CardFooter>
         </Card>
       </div>
-      <p className="text-xs text-muted-foreground mt-8 text-center">
-        BudgetWise © {new Date().getFullYear()} - Your Personal Finance Companion.
-      </p>
+      <div className="mt-auto w-full"> 
+        <SiteFooter />
+      </div>
     </div>
   );
 }
