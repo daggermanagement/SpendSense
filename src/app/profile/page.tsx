@@ -39,7 +39,7 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-const MAX_FILE_SIZE_MB = 0.1; // 100KB for Base64
+const MAX_FILE_SIZE_MB = 2; // Changed from 0.1 to 2
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export default function ProfilePage() {
@@ -174,6 +174,8 @@ export default function ProfilePage() {
         }
         
         try {
+          // Attempt to update Firebase Auth photoURL, but be mindful of its length limits for data URIs.
+          // Firebase Auth photoURL might have stricter length limits than Firestore.
           await updateProfile(auth.currentUser!, { photoURL: base64DataUri });
           if (setUser && auth.currentUser) {
             setUser(prevState => ({...prevState!, photoURL: auth.currentUser?.photoURL}));
@@ -192,7 +194,7 @@ export default function ProfilePage() {
         toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
         setUploadProgress(100);
       } catch (error: any) {
-        setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null); 
+        setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null); // Revert preview on error
         toast({
           title: "Image Update Failed",
           description: error.message || "Could not save new profile picture.",
@@ -202,6 +204,8 @@ export default function ProfilePage() {
         setUploadProgress(0);
       } finally {
         setIsUploadingImage(false);
+        // Consider resetting event.target.value = "" here if needed, though it's tricky with controlled components.
+        // For native input, event.target.value = null; would allow re-uploading the same file.
       }
     };
     reader.onerror = () => {
@@ -389,3 +393,5 @@ export default function ProfilePage() {
   );
 }
 
+
+    
