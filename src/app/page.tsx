@@ -28,7 +28,6 @@ import { collection, addDoc, doc, updateDoc, deleteDoc, query, orderBy, onSnapsh
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
-// Removed SiteFooter import, it's in RootLayout
 
 
 export default function BudgetWisePage() {
@@ -161,7 +160,7 @@ export default function BudgetWisePage() {
   }
 
   return (
-    <div className="container py-8">
+    <div className="w-full py-8 px-4 sm:px-6 lg:px-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Row 1: Overviews and Actions */}
@@ -246,7 +245,6 @@ export default function BudgetWisePage() {
         </div>
 
       </div> {/* End of main grid */}
-      {/* Footer removed from here, SiteFooter is in RootLayout */}
     </div>
   );
 }
