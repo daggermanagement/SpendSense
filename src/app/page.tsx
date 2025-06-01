@@ -10,6 +10,7 @@ import { MonthlyOverview } from "@/components/budgetwise/monthly-overview";
 import { SpendingChart } from "@/components/budgetwise/spending-chart";
 import { AiBudgetAdvisor } from "@/components/budgetwise/ai-budget-advisor";
 import { RecentTransactions } from "@/components/budgetwise/recent-transactions";
+import { IncomeExpenseChart } from "@/components/budgetwise/income-expense-chart"; // Added import
 import type { Transaction } from "@/types";
 import { allCategories } from "@/types";
 import {
@@ -134,6 +135,7 @@ export default function BudgetWisePage() {
         <div className="lg:col-span-2 space-y-8">
           <MonthlyOverview transactions={transactions} />
           <SpendingChart transactions={transactions} />
+          <IncomeExpenseChart transactions={transactions} /> {/* Added new chart */}
         </div>
         <div className="lg:col-span-1 space-y-8">
           <Card className="shadow-lg">
