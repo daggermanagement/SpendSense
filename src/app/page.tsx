@@ -160,7 +160,7 @@ export default function BudgetWisePage() {
   }
 
   return (
-    <div className="w-full py-8 px-4 sm:px-6 lg:px-8">
+    <div className="container py-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Row 1: Overviews and Actions */}
@@ -248,3 +248,4 @@ export default function BudgetWisePage() {
     </div>
   );
 }
+
