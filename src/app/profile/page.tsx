@@ -39,7 +39,7 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-const MAX_FILE_SIZE_MB = 2; // Changed from 0.1 to 2
+const MAX_FILE_SIZE_MB = 2;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export default function ProfilePage() {
@@ -48,7 +48,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isUploadingImage, setIsUploadingImage] = React.useState(false);
-  const [uploadProgress, setUploadProgress] = React.useState(0); 
+  const [uploadProgress, setUploadProgress] = React.useState(0);
   const [localPhotoPreview, setLocalPhotoPreview] = React.useState<string | null | undefined>(null);
   
   const form = useForm<ProfileFormValues>({
@@ -68,7 +68,7 @@ export default function ProfilePage() {
     }
     if (user) {
       const currentBudgets = userPreferences?.budgets || {};
-      reset({ 
+      reset({
         displayName: user.displayName || "",
         currency: userPreferences?.currency || DEFAULT_CURRENCY,
         budgets: allCategories.expense.map(cat => ({
@@ -133,7 +133,14 @@ export default function ProfilePage() {
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!user || !auth.currentUser) return;
     const file = event.target.files?.[0];
-    if (!file) return;
+    
+    // Keep a reference to event.target to clear it later
+    const currentTarget = event.currentTarget;
+
+    if (!file) {
+      if (currentTarget) (currentTarget as HTMLInputElement).value = ""; // Clear input if no file selected
+      return;
+    }
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
       toast({
@@ -141,6 +148,7 @@ export default function ProfilePage() {
         description: `Profile picture cannot exceed ${MAX_FILE_SIZE_MB}MB.`,
         variant: "destructive",
       });
+      if (currentTarget) (currentTarget as HTMLInputElement).value = ""; // Clear input
       return;
     }
 
@@ -149,22 +157,22 @@ export default function ProfilePage() {
 
     const reader = new FileReader();
     reader.onloadstart = () => {
-      setUploadProgress(30); 
+      setUploadProgress(30);
     };
     reader.onprogress = (event) => {
       if (event.lengthComputable) {
-        const progress = (event.loaded / event.total) * 50; 
+        const progress = (event.loaded / event.total) * 50;
         setUploadProgress(30 + progress);
       }
     };
     reader.onloadend = async () => {
       const base64DataUri = reader.result as string;
-      setLocalPhotoPreview(base64DataUri); 
-      setUploadProgress(80); 
+      setLocalPhotoPreview(base64DataUri);
+      setUploadProgress(80);
 
       try {
         const userDocRef = doc(db, "users", user.uid);
-        const newPreferences: Partial<UserPreferences> = { 
+        const newPreferences: Partial<UserPreferences> = {
           profileImageBase64: base64DataUri,
         };
         await setDoc(userDocRef, newPreferences , { merge: true });
@@ -174,8 +182,6 @@ export default function ProfilePage() {
         }
         
         try {
-          // Attempt to update Firebase Auth photoURL, but be mindful of its length limits for data URIs.
-          // Firebase Auth photoURL might have stricter length limits than Firestore.
           await updateProfile(auth.currentUser!, { photoURL: base64DataUri });
           if (setUser && auth.currentUser) {
             setUser(prevState => ({...prevState!, photoURL: auth.currentUser?.photoURL}));
@@ -185,16 +191,16 @@ export default function ProfilePage() {
            toast({
             title: "Auth Photo Not Updated",
             description: "Image saved to profile, but Firebase Auth photo might be unchanged (possibly due to length).",
-            variant: "default", 
+            variant: "default",
             duration: 5000,
           });
         }
         
-        setLocalPhotoPreview(base64DataUri); 
+        setLocalPhotoPreview(base64DataUri);
         toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
         setUploadProgress(100);
       } catch (error: any) {
-        setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null); // Revert preview on error
+        setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null);
         toast({
           title: "Image Update Failed",
           description: error.message || "Could not save new profile picture.",
@@ -204,8 +210,7 @@ export default function ProfilePage() {
         setUploadProgress(0);
       } finally {
         setIsUploadingImage(false);
-        // Consider resetting event.target.value = "" here if needed, though it's tricky with controlled components.
-        // For native input, event.target.value = null; would allow re-uploading the same file.
+        if (currentTarget) (currentTarget as HTMLInputElement).value = ""; // Clear the input value
       }
     };
     reader.onerror = () => {
@@ -216,6 +221,7 @@ export default function ProfilePage() {
         description: "Could not read the selected file.",
         variant: "destructive",
       });
+      if (currentTarget) (currentTarget as HTMLInputElement).value = ""; // Clear input
     };
     reader.readAsDataURL(file);
   };
@@ -244,10 +250,10 @@ export default function ProfilePage() {
     <div className="container py-12">
       <div className="w-full max-w-2xl mx-auto">
         <div className="mb-6">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={() => router.back()} 
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
             className="w-auto"
             disabled={isSubmitting || isUploadingImage}
           >
@@ -349,7 +355,7 @@ export default function ProfilePage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                     {allCategories.expense.map((categoryName, index) => (
                        <FormField
-                          key={categoryName} 
+                          key={categoryName}
                           control={control}
                           name={`budgets.${index}.amount`}
                           render={({ field: { onChange, value, ...restField } }) => (
@@ -361,7 +367,7 @@ export default function ProfilePage() {
                                   placeholder="0.00"
                                   step="0.01"
                                   {...restField}
-                                  value={value === undefined ? '' : String(value)} 
+                                  value={value === undefined ? '' : String(value)}
                                   onChange={(e) => {
                                       const numVal = parseFloat(e.target.value);
                                       onChange(isNaN(numVal) ? undefined : numVal);
@@ -392,6 +398,6 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-
     
+
+      
