@@ -14,14 +14,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, UserCircle, Camera, Save, Trash2, DollarSign } from "lucide-react";
 import { updateProfile } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
+import { auth, db, storage } from "@/lib/firebase"; // Added storage
 import { doc, setDoc, getDoc } from "firebase/firestore";
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage"; // Added storage functions
 import { useRouter } from "next/navigation";
 import { COMMON_CURRENCIES, DEFAULT_CURRENCY, type CurrencyCode, formatCurrency } from "@/lib/currencyUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { allCategories, type ExpenseCategory } from "@/types";
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
+import { allCategories, type ExpenseCategory, type UserBudget } from "@/types";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress"; // Added Progress
 
 const budgetEntrySchema = z.object({
   category: z.custom<ExpenseCategory>(),
@@ -38,7 +40,8 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-const MAX_FILE_SIZE_BYTES = 100 * 1024; // 100KB limit for Base64 in Firestore
+const MAX_FILE_SIZE_MB = 1;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export default function ProfilePage() {
   const { user, loading: authLoading, setUser, userPreferences, setUserPreferences } = useAuth();
@@ -46,6 +49,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isUploadingImage, setIsUploadingImage] = React.useState(false);
+  const [uploadProgress, setUploadProgress] = React.useState(0);
   const [localPhotoPreview, setLocalPhotoPreview] = React.useState<string | null | undefined>(null);
   
   const form = useForm<ProfileFormValues>({
@@ -56,39 +60,35 @@ export default function ProfilePage() {
       budgets: allCategories.expense.map(cat => ({ category: cat as ExpenseCategory, amount: undefined })),
     }
   });
-  const { register, handleSubmit, setValue: setFormValue, control, watch, formState: { errors } } = form;
+  const { handleSubmit, control, watch, formState: { errors }, setValue } = form;
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields } = useFieldArray({
     control,
     name: "budgets",
   });
 
-  // Initialize form with user data
   React.useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
       return;
     }
     if (user) {
-      setFormValue("displayName", user.displayName || "");
+      setValue("displayName", user.displayName || "");
+      setLocalPhotoPreview(user.photoURL || null); // Initialize with current auth photoURL
     }
     if (userPreferences) {
-      setFormValue("currency", userPreferences.currency || DEFAULT_CURRENCY);
+      setValue("currency", userPreferences.currency || DEFAULT_CURRENCY);
+      // Prefer Firestore image if available, else Auth photoURL
       setLocalPhotoPreview(userPreferences.profileImageBase64 || user?.photoURL || null);
       
-      // Populate budgets array from userPreferences.budgets map
       const existingBudgetsArray = allCategories.expense.map(cat => ({
         category: cat as ExpenseCategory,
         amount: userPreferences.budgets?.[cat] || undefined,
       }));
-      setFormValue("budgets", existingBudgetsArray);
-
-    } else if (user) {
-      setLocalPhotoPreview(user.photoURL || null);
-      setFormValue("budgets", allCategories.expense.map(cat => ({ category: cat as ExpenseCategory, amount: undefined })));
+      setValue("budgets", existingBudgetsArray);
     }
 
-  }, [user, authLoading, setFormValue, router, userPreferences]);
+  }, [user, authLoading, setValue, router, userPreferences]);
 
 
   const handleProfileUpdate = async (data: ProfileFormValues) => {
@@ -111,7 +111,7 @@ export default function ProfilePage() {
       }
 
       if (data.budgets) {
-        const newBudgetsMap: { [category: string]: number } = {};
+        const newBudgetsMap: UserBudget = {};
         data.budgets.forEach(budgetEntry => {
           if (budgetEntry.category && budgetEntry.amount !== undefined && budgetEntry.amount > 0) {
             newBudgetsMap[budgetEntry.category] = budgetEntry.amount;
@@ -127,14 +127,14 @@ export default function ProfilePage() {
          }
       }
 
-      toast({ title: "Profile Updated", description: "Your profile settings have been updated." });
+      toast({ title: "Profile Settings Updated", description: "Your display name, currency, and budgets have been updated." });
     } catch (error: any) {
       toast({
-        title: "Update Failed",
+        title: "Settings Update Failed",
         description: error.message || "Could not update profile settings.",
         variant: "destructive",
       });
-      console.error("Error updating profile:", error);
+      console.error("Error updating profile settings:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -148,51 +148,93 @@ export default function ProfilePage() {
     if (file.size > MAX_FILE_SIZE_BYTES) {
       toast({
         title: "File Too Large",
-        description: `Profile picture cannot exceed ${MAX_FILE_SIZE_BYTES / 1024}KB.`,
+        description: `Profile picture cannot exceed ${MAX_FILE_SIZE_MB}MB.`,
         variant: "destructive",
       });
       return;
     }
 
     setIsUploadingImage(true);
+    setUploadProgress(0);
+    
+    // For immediate preview before upload completes
     const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64DataUri = reader.result as string;
-      setLocalPhotoPreview(base64DataUri); 
+    reader.onload = (e) => setLocalPhotoPreview(e.target?.result as string);
+    reader.readAsDataURL(file);
 
-      try {
-        const userDocRef = doc(db, "users", user.uid);
-        await setDoc(userDocRef, { profileImageBase64: base64DataUri }, { merge: true });
+    const oldPhotoPath = userPreferences?.profileImageStoragePath;
 
-        if (setUserPreferences) {
-            setUserPreferences(prev => ({ ...prev!, profileImageBase64: base64DataUri }));
-        }
-        
-        try { // Attempt to update Auth photoURL, might fail if string is too long
-            await updateProfile(auth.currentUser!, { photoURL: base64DataUri });
-             if (setUser && auth.currentUser) {
-               setUser(prevState => ({...prevState!, photoURL: base64DataUri}));
-            }
-        } catch (authError: any) {
-            console.warn("Firebase Auth photoURL update failed (might be too long):", authError.message);
-        }
-        
-        toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
+    const storageRef = ref(storage, `profileImages/${user.uid}/${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
 
-      } catch (error: any) {
-        setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null); 
+    uploadTask.on(
+      "state_changed",
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setUploadProgress(progress);
+      },
+      (error) => {
+        setIsUploadingImage(false);
+        setUploadProgress(0);
+        setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null); // Revert preview
         toast({
-          title: "Image Update Failed",
-          description: error.message || "Could not save new profile picture.",
+          title: "Upload Failed",
+          description: error.message || "Could not upload profile picture.",
           variant: "destructive",
         });
-        console.error("Error updating profile with new image:", error);
-      } finally {
-        setIsUploadingImage(false);
+        console.error("Error uploading image:", error);
+      },
+      async () => {
+        try {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          
+          // Update Firebase Auth profile
+          await updateProfile(auth.currentUser!, { photoURL: downloadURL });
+
+          // Update Firestore document
+          const userDocRef = doc(db, "users", user.uid);
+          const newPreferences: Partial<UserPreferences> = { 
+            profileImageBase64: downloadURL, // Storing URL from storage, not base64
+            profileImageStoragePath: uploadTask.snapshot.ref.fullPath // Store path for deletion
+          };
+          await setDoc(userDocRef, newPreferences , { merge: true });
+
+          // Update local context
+          if (setUserPreferences) {
+            setUserPreferences(prev => ({ ...prev!, ...newPreferences }));
+          }
+           if (setUser && auth.currentUser) {
+            setUser(prevState => ({...prevState!, photoURL: downloadURL}));
+          }
+          setLocalPhotoPreview(downloadURL); // Update preview with final URL
+
+          // Delete old image from storage if it exists and is different
+          if (oldPhotoPath && oldPhotoPath !== uploadTask.snapshot.ref.fullPath) {
+            try {
+              const oldImageRef = ref(storage, oldPhotoPath);
+              await deleteObject(oldImageRef);
+            } catch (deleteError) {
+              console.warn("Could not delete old profile image:", deleteError);
+            }
+          }
+
+          toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
+        } catch (error: any) {
+          setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null); // Revert preview
+          toast({
+            title: "Image Update Failed",
+            description: error.message || "Could not save new profile picture.",
+            variant: "destructive",
+          });
+          console.error("Error updating profile with new image:", error);
+        } finally {
+          setIsUploadingImage(false);
+          setUploadProgress(0);
+        }
       }
-    };
-    reader.readAsDataURL(file);
+    );
   };
+
 
   const getInitials = (name?: string | null) => {
     if (!name) return user?.email?.substring(0, 2).toUpperCase() || "U";
@@ -240,14 +282,15 @@ export default function ProfilePage() {
               accept="image/png, image/jpeg, image/gif"
               className="hidden"
               onChange={handleImageUpload}
-              disabled={isUploadingImage}
+              disabled={isUploadingImage || isSubmitting}
             />
           </div>
+          {isUploadingImage && <Progress value={uploadProgress} className="w-3/4 mx-auto h-2 my-2" />}
           <CardTitle className="text-3xl font-headline flex items-center mt-4">
             <UserCircle className="mr-3 h-8 w-8 text-primary" />
             Edit Profile
           </CardTitle>
-          <CardDescription>Update your display name, profile picture (max {MAX_FILE_SIZE_BYTES/1024}KB), currency, and monthly budgets.</CardDescription>
+          <CardDescription>Update your display name, profile picture (max {MAX_FILE_SIZE_MB}MB), currency, and monthly budgets.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
           <Form {...form}>
@@ -347,3 +390,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
