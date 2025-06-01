@@ -2,13 +2,13 @@
 "use client";
 
 import * as React from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form"; // Removed useFieldArray as it's not used with the current static field generation
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label"; // Ensure Label is imported for direct use if any (though FormLabel is preferred within FormField)
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
@@ -48,7 +48,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isUploadingImage, setIsUploadingImage] = React.useState(false);
-  const [uploadProgress, setUploadProgress] = React.useState(0); // Kept for potential future progress logic with Base64
+  const [uploadProgress, setUploadProgress] = React.useState(0); 
   const [localPhotoPreview, setLocalPhotoPreview] = React.useState<string | null | undefined>(null);
   
   const form = useForm<ProfileFormValues>({
@@ -61,11 +61,9 @@ export default function ProfilePage() {
   });
   const { handleSubmit, control, watch, formState: { errors }, setValue, reset } = form;
 
-  const { fields } = Controller({
-    control,
-    name: "budgets",
-  });
-
+  // The problematic line `const { fields } = Controller(...)` was removed as `fields` from this declaration was not used,
+  // and it was causing the "props.render is not a function" error.
+  // The budget fields are rendered by iterating `allCategories.expense` and using `FormField` correctly.
 
   React.useEffect(() => {
     if (!authLoading && !user) {
@@ -73,7 +71,7 @@ export default function ProfilePage() {
       return;
     }
     if (user) {
-      reset({ // Use reset to ensure form is fully updated with new defaults
+      reset({ 
         displayName: user.displayName || "",
         currency: userPreferences?.currency || DEFAULT_CURRENCY,
         budgets: allCategories.expense.map(cat => ({
@@ -150,41 +148,37 @@ export default function ProfilePage() {
     }
 
     setIsUploadingImage(true);
-    setUploadProgress(0); // Reset progress
+    setUploadProgress(0);
 
     const reader = new FileReader();
     reader.onloadstart = () => {
-      setUploadProgress(30); // Simulate start of reading
+      setUploadProgress(30); 
     };
     reader.onprogress = (event) => {
       if (event.lengthComputable) {
-        const progress = (event.loaded / event.total) * 50; // Reading part of progress
+        const progress = (event.loaded / event.total) * 50; 
         setUploadProgress(30 + progress);
       }
     };
     reader.onloadend = async () => {
       const base64DataUri = reader.result as string;
-      setLocalPhotoPreview(base64DataUri); // Immediate preview with Base64 string
-      setUploadProgress(80); // Simulate processing
+      setLocalPhotoPreview(base64DataUri); 
+      setUploadProgress(80); 
 
       try {
-        // Save Base64 to Firestore
         const userDocRef = doc(db, "users", user.uid);
         const newPreferences: Partial<UserPreferences> = { 
           profileImageBase64: base64DataUri,
         };
         await setDoc(userDocRef, newPreferences , { merge: true });
 
-        // Update local AuthContext state
         if (setUserPreferences) {
           setUserPreferences(prev => ({ ...prev!, ...newPreferences }));
         }
         
-        // Attempt to update Firebase Auth photoURL (might fail if too long)
         try {
           await updateProfile(auth.currentUser!, { photoURL: base64DataUri });
           if (setUser && auth.currentUser) {
-            // Ensure context user reflects the potentially updated auth.currentUser
             setUser(prevState => ({...prevState!, photoURL: auth.currentUser?.photoURL}));
           }
         } catch (authError: any) {
@@ -192,16 +186,16 @@ export default function ProfilePage() {
            toast({
             title: "Auth Photo Not Updated",
             description: "Image saved to profile, but Firebase Auth photo might be unchanged (possibly due to length).",
-            variant: "default", // It's not destructive, just an info
+            variant: "default", 
             duration: 5000,
           });
         }
         
-        setLocalPhotoPreview(base64DataUri); // Final update to ensure UI reflects the saved data
+        setLocalPhotoPreview(base64DataUri); 
         toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
         setUploadProgress(100);
       } catch (error: any) {
-        setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null); // Revert preview
+        setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null); 
         toast({
           title: "Image Update Failed",
           description: error.message || "Could not save new profile picture.",
@@ -211,8 +205,6 @@ export default function ProfilePage() {
         setUploadProgress(0);
       } finally {
         setIsUploadingImage(false);
-        // Optionally reset progress after a delay if it's 100
-        // setTimeout(() => setUploadProgress(0), 2000); 
       }
     };
     reader.onerror = () => {
@@ -288,7 +280,7 @@ export default function ProfilePage() {
           <Form {...form}>
             <form onSubmit={handleSubmit(handleProfileUpdate)} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <FormLabel htmlFor="email">Email</FormLabel>
                 <Input id="email" type="email" value={user.email || ""} readOnly disabled className="bg-muted/50"/>
                 <p className="text-xs text-muted-foreground">Email address cannot be changed.</p>
               </div>
@@ -343,7 +335,7 @@ export default function ProfilePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                   {allCategories.expense.map((categoryName, index) => (
                      <FormField
-                        key={categoryName} // Use category name as key for stability
+                        key={categoryName} 
                         control={control}
                         name={`budgets.${index}.amount`}
                         render={({ field: { onChange, value, ...restField } }) => (
@@ -355,7 +347,7 @@ export default function ProfilePage() {
                                 placeholder="0.00"
                                 step="0.01"
                                 {...restField}
-                                value={value === undefined ? '' : String(value)} // Handle undefined for empty input
+                                value={value === undefined ? '' : String(value)} 
                                 onChange={(e) => {
                                     const numVal = parseFloat(e.target.value);
                                     onChange(isNaN(numVal) ? undefined : numVal);
@@ -383,4 +375,3 @@ export default function ProfilePage() {
   );
 }
 
-    
