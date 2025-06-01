@@ -14,8 +14,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, UserCircle, Edit3, Camera } from "lucide-react";
 import { updateProfile } from "firebase/auth";
-import { auth, storage } from "@/lib/firebase";
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
+import { auth, db } from "@/lib/firebase"; // Removed storage import
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
 const profileSchema = z.object({
@@ -24,20 +24,22 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
+// Max original file size: 100KB. Base64 will be ~133KB.
+const MAX_FILE_SIZE_BYTES = 100 * 1024; 
+
 export default function ProfilePage() {
   const { user, loading: authLoading, setUser } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmittingName, setIsSubmittingName] = React.useState(false);
   const [isUploadingImage, setIsUploadingImage] = React.useState(false);
-  const [localPhotoPreview, setLocalPhotoPreview] = React.useState<string | null | undefined>(null); // For optimistic UI update
-  const [uploadProgress, setUploadProgress] = React.useState<number | null>(null);
-
+  const [localPhotoPreview, setLocalPhotoPreview] = React.useState<string | null | undefined>(null);
+  const [uploadProgress, setUploadProgress] = React.useState<number | null>(null); // Kept for UI consistency, but won't show real progress for Base64
 
   const {
     register,
     handleSubmit,
-    setValue,
+    setValue: setFormValue, // Renamed to avoid conflict
     formState: { errors },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -46,12 +48,32 @@ export default function ProfilePage() {
   React.useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
+      return;
     }
     if (user) {
-      setValue("displayName", user.displayName || "");
-      setLocalPhotoPreview(user.photoURL);
+      setFormValue("displayName", user.displayName || "");
+      // Attempt to load from Firestore first, then Auth photoURL
+      const loadProfileImage = async () => {
+        if (user.uid) {
+          try {
+            const userDocRef = doc(db, "users", user.uid);
+            const docSnap = await getDoc(userDocRef);
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              if (data.profileImageBase64) {
+                setLocalPhotoPreview(data.profileImageBase64);
+                return;
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching profile image from Firestore:", error);
+          }
+        }
+        setLocalPhotoPreview(user.photoURL); // Fallback to auth photoURL
+      };
+      loadProfileImage();
     }
-  }, [user, authLoading, setValue, router]);
+  }, [user, authLoading, setFormValue, router]);
 
   const handleNameUpdate = async (data: ProfileFormValues) => {
     if (!user || !auth.currentUser) return;
@@ -59,8 +81,12 @@ export default function ProfilePage() {
     try {
       await updateProfile(auth.currentUser, { displayName: data.displayName });
       if (setUser && auth.currentUser) {
-        const updatedUserContext = { ...user, displayName: data.displayName };
-        setUser(updatedUserContext); // Update context
+        // Create a new user object for the context to ensure re-render
+        const updatedUserContext = { 
+          ...user, 
+          displayName: auth.currentUser.displayName 
+        };
+        setUser(updatedUserContext);
       }
       toast({ title: "Profile Updated", description: "Your display name has been updated." });
     } catch (error: any) {
@@ -80,69 +106,66 @@ export default function ProfilePage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const maxSize = 1 * 1024 * 1024; // 1MB limit
-    if (file.size > maxSize) {
-        toast({
-            title: "File Too Large",
-            description: `Profile picture cannot exceed ${maxSize / (1024 * 1024)}MB.`,
-            variant: "destructive",
-        });
-        return;
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast({
+        title: "File Too Large",
+        description: `Profile picture cannot exceed ${MAX_FILE_SIZE_BYTES / 1024}KB.`,
+        variant: "destructive",
+      });
+      return;
     }
 
     setIsUploadingImage(true);
-    setUploadProgress(0);
+    setUploadProgress(50); // Mock progress as conversion is fast
 
-    // Show local preview immediately
     const reader = new FileReader();
-    reader.onload = (e) => setLocalPhotoPreview(e.target?.result as string);
-    reader.readAsDataURL(file);
+    reader.onloadend = async () => {
+      const base64DataUri = reader.result as string;
+      setLocalPhotoPreview(base64DataUri); // Optimistic UI update
 
-    const storageRef = ref(storage, `profileImages/${user.uid}/${file.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+      try {
+        // Save to Firestore
+        const userDocRef = doc(db, "users", user.uid);
+        await setDoc(userDocRef, { profileImageBase64: base64DataUri }, { merge: true });
 
-    uploadTask.on(
-      "state_changed",
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setUploadProgress(progress);
-      },
-      (error) => {
-        setIsUploadingImage(false);
-        setUploadProgress(null);
+        // Attempt to save to Firebase Auth photoURL
+        try {
+            await updateProfile(auth.currentUser!, { photoURL: base64DataUri });
+        } catch (authError: any) {
+            console.warn("Firebase Auth photoURL update failed (might be too long):", authError.message);
+            toast({
+                title: "Image Stored in DB",
+                description: "Profile picture saved. Display in some areas might rely on browser cache or direct DB read if Auth update failed.",
+                variant: "default",
+            });
+        }
+
+        if (setUser && auth.currentUser) {
+          // Create a new user object for the context to ensure re-render
+          const updatedUserContext = { 
+            ...user, 
+            photoURL: auth.currentUser.photoURL, // This will be the (potentially failed) auth version
+            // To truly reflect Firestore, context would need a way to store/fetch profileImageBase64
+          };
+           setUser(prevState => ({...prevState!, photoURL: base64DataUri}));
+        }
+        setLocalPhotoPreview(base64DataUri);
+        toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
+
+      } catch (error: any) {
         setLocalPhotoPreview(user.photoURL); // Revert preview on error
         toast({
-          title: "Upload Failed",
-          description: error.message || "Could not upload image.",
+          title: "Image Update Failed",
+          description: error.message || "Could not save new profile picture.",
           variant: "destructive",
         });
-        console.error("Error uploading image:", error);
-      },
-      async () => {
-        try {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          await updateProfile(auth.currentUser!, { photoURL: downloadURL });
-
-          if (setUser && auth.currentUser) {
-             const updatedUserContext = { ...user, photoURL: downloadURL };
-             setUser(updatedUserContext); // Update context
-          }
-          setLocalPhotoPreview(downloadURL); // Ensure preview is the final URL
-          toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
-        } catch (error: any) {
-          setLocalPhotoPreview(user.photoURL); // Revert preview on error
-          toast({
-            title: "Image Update Failed",
-            description: error.message || "Could not save new profile picture URL.",
-            variant: "destructive",
-          });
-          console.error("Error updating profile with new image URL:", error);
-        } finally {
-          setIsUploadingImage(false);
-          setUploadProgress(null);
-        }
+        console.error("Error updating profile with new image:", error);
+      } finally {
+        setIsUploadingImage(false);
+        setUploadProgress(null);
       }
-    );
+    };
+    reader.readAsDataURL(file);
   };
 
   const getInitials = (name?: string | null) => {
@@ -206,7 +229,7 @@ export default function ProfilePage() {
             <UserCircle className="mr-3 h-8 w-8 text-primary" />
             Edit Profile
           </CardTitle>
-          <CardDescription>Update your display name and profile picture.</CardDescription>
+          <CardDescription>Update your display name and profile picture. Max image size: ${MAX_FILE_SIZE_BYTES / 1024}KB.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
           <form onSubmit={handleSubmit(handleNameUpdate)} className="space-y-6">
@@ -231,3 +254,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+
