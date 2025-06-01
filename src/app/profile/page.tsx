@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, UserCircle, Edit3, Camera, Save } from "lucide-react";
+import { Loader2, UserCircle, Camera, Save } from "lucide-react";
 import { updateProfile } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, setDoc, getDoc } from "firebase/firestore";
@@ -29,7 +29,7 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-const MAX_FILE_SIZE_BYTES = 100 * 1024; 
+const MAX_FILE_SIZE_BYTES = 100 * 1024; // 100KB limit for Base64 in Firestore
 
 export default function ProfilePage() {
   const { user, loading: authLoading, setUser, userPreferences, setUserPreferences } = useAuth();
@@ -43,7 +43,7 @@ export default function ProfilePage() {
     register,
     handleSubmit,
     setValue: setFormValue,
-    control, // For react-hook-form controlled Select
+    control,
     formState: { errors },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -60,35 +60,21 @@ export default function ProfilePage() {
     }
     if (user) {
       setFormValue("displayName", user.displayName || "");
-      setFormValue("currency", userPreferences?.currency || DEFAULT_CURRENCY);
-
-      const loadProfileImage = async () => {
-        if (user.uid) {
-          try {
-            const userDocRef = doc(db, "users", user.uid);
-            const docSnap = await getDoc(userDocRef);
-            if (docSnap.exists()) {
-              const data = docSnap.data();
-              if (data.profileImageBase64) {
-                setLocalPhotoPreview(data.profileImageBase64);
-                return;
-              }
-            }
-          } catch (error) {
-            console.error("Error fetching profile image from Firestore:", error);
-          }
-        }
-        setLocalPhotoPreview(user.photoURL); 
-      };
-      loadProfileImage();
     }
+    if (userPreferences) {
+        setFormValue("currency", userPreferences.currency || DEFAULT_CURRENCY);
+        // Prioritize Firestore image for preview, then Auth photoURL
+        setLocalPhotoPreview(userPreferences.profileImageBase64 || user?.photoURL || null);
+    } else if (user) {
+        setLocalPhotoPreview(user.photoURL || null);
+    }
+
   }, [user, authLoading, setFormValue, router, userPreferences]);
 
   const handleProfileUpdate = async (data: ProfileFormValues) => {
     if (!user || !auth.currentUser) return;
     setIsSubmitting(true);
     try {
-      // Update display name in Auth
       if (data.displayName !== user.displayName) {
         await updateProfile(auth.currentUser, { displayName: data.displayName });
         if (setUser && auth.currentUser) {
@@ -97,7 +83,6 @@ export default function ProfilePage() {
         }
       }
 
-      // Update currency in Firestore
       if (data.currency && data.currency !== (userPreferences?.currency || DEFAULT_CURRENCY)) {
         const userDocRef = doc(db, "users", user.uid);
         await setDoc(userDocRef, { currency: data.currency }, { merge: true });
@@ -142,25 +127,29 @@ export default function ProfilePage() {
         const userDocRef = doc(db, "users", user.uid);
         await setDoc(userDocRef, { profileImageBase64: base64DataUri }, { merge: true });
 
+        if (setUserPreferences) {
+            setUserPreferences(prev => ({ ...prev!, profileImageBase64: base64DataUri }));
+        }
+        
         try {
             await updateProfile(auth.currentUser!, { photoURL: base64DataUri });
+             if (setUser && auth.currentUser) {
+               setUser(prevState => ({...prevState!, photoURL: base64DataUri}));
+            }
         } catch (authError: any) {
             console.warn("Firebase Auth photoURL update failed (might be too long):", authError.message);
             toast({
                 title: "Image Stored in DB",
-                description: "Profile picture saved locally.",
+                description: "Profile picture saved to database. Auth photoURL update might have limits.",
                 variant: "default",
             });
         }
-
-        if (setUser && auth.currentUser) {
-           setUser(prevState => ({...prevState!, photoURL: base64DataUri}));
-        }
-        setLocalPhotoPreview(base64DataUri);
+        
         toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
 
       } catch (error: any) {
-        setLocalPhotoPreview(user.photoURL); 
+        // Revert preview if Firestore save fails
+        setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null); 
         toast({
           title: "Image Update Failed",
           description: error.message || "Could not save new profile picture.",
@@ -225,7 +214,7 @@ export default function ProfilePage() {
             <UserCircle className="mr-3 h-8 w-8 text-primary" />
             Edit Profile
           </CardTitle>
-          <CardDescription>Update your display name, profile picture, and currency preference. Max image size: ${MAX_FILE_SIZE_BYTES / 1024}KB.</CardDescription>
+          <CardDescription>Update your display name, profile picture (max {MAX_FILE_SIZE_BYTES/1024}KB), and currency preference.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
           <form onSubmit={handleSubmit(handleProfileUpdate)} className="space-y-6">

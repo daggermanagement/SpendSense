@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function Header() {
-  const { user, loading, logout } = useAuth();
+  const { user, userPreferences, loading, logout } = useAuth(); // Added userPreferences
 
   const getInitials = (email?: string | null, displayName?: string | null) => {
     if (displayName) {
@@ -30,6 +30,9 @@ export function Header() {
     if (!email) return "U";
     return email.substring(0, 2).toUpperCase();
   };
+
+  // Determine the avatar source: Firestore Base64 first, then Auth photoURL
+  const avatarSrc = userPreferences?.profileImageBase64 || user?.photoURL || undefined;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -47,7 +50,7 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || "User"} />
+                    <AvatarImage src={avatarSrc} alt={user.displayName || user.email || "User"} />
                     <AvatarFallback>{getInitials(user.email, user.displayName)}</AvatarFallback>
                   </Avatar>
                 </Button>

@@ -3,15 +3,16 @@
 
 import type { User } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db } from '@/lib/firebase'; // Added db
+import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { useRouter, usePathname } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore'; // Added
+import { doc, getDoc } from 'firebase/firestore';
 import type { CurrencyCode } from '@/lib/currencyUtils';
 import { DEFAULT_CURRENCY } from '@/lib/currencyUtils';
 
 export interface UserPreferences {
   currency: CurrencyCode;
+  profileImageBase64?: string | null; // Added for Firestore-based profile image
   // Add other preferences here in the future
 }
 
@@ -37,7 +38,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        // Fetch user preferences from Firestore
         try {
           const userDocRef = doc(db, "users", currentUser.uid);
           const docSnap = await getDoc(userDocRef);
@@ -45,14 +45,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const data = docSnap.data();
             setUserPreferences({
               currency: (data.currency as CurrencyCode) || DEFAULT_CURRENCY,
+              profileImageBase64: data.profileImageBase64 || null, // Load profile image from Firestore
             });
           } else {
-            // User document might not exist yet or has no currency preference
-            setUserPreferences({ currency: DEFAULT_CURRENCY });
+            setUserPreferences({ 
+              currency: DEFAULT_CURRENCY,
+              profileImageBase64: null,
+            });
           }
         } catch (error) {
           console.error("Error fetching user preferences:", error);
-          setUserPreferences({ currency: DEFAULT_CURRENCY }); // Fallback
+          setUserPreferences({ 
+            currency: DEFAULT_CURRENCY,
+            profileImageBase64: null, // Fallback
+          });
         }
       } else {
         setUser(null);
