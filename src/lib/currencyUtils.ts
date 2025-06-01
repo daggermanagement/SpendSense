@@ -11,6 +11,7 @@ export const COMMON_CURRENCIES = [
   { code: 'CHF', name: 'Swiss Franc' },
   { code: 'CNY', name: 'Chinese Yuan Renminbi' },
   { code: 'INR', name: 'Indian Rupee' },
+  { code: 'IDR', name: 'Indonesian Rupiah' },
   { code: 'BRL', name: 'Brazilian Real' },
   { code: 'RUB', name: 'Russian Ruble' },
   { code: 'KRW', name: 'South Korean Won' },
@@ -27,11 +28,14 @@ export function formatCurrency(
   locale: string = 'en-US' // This could also be made dynamic in a more advanced i18n setup
 ): string {
   try {
+    // For IDR, it's common to not show decimal places for large amounts,
+    // but standard currency formatting usually includes them.
+    // Intl.NumberFormat handles this based on locale and currency norms.
     return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currencyCode,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: currencyCode === 'IDR' ? 0 : 2, // Show 0 for IDR, 2 for others
+      maximumFractionDigits: currencyCode === 'IDR' ? 0 : 2,
     }).format(amount);
   } catch (error) {
     // Fallback for invalid currency code, though list should prevent this
