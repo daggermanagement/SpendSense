@@ -135,10 +135,10 @@ export default function BudgetWisePage() {
         <RecentTransactions transactions={transactions} />
       </main>
 
-      <footer className="py-6 md:px-8 md:py-0 border-t bg-background/95">
-        <div className="container flex flex-col items-center justify-center gap-2 md:h-20 md:flex-row md:justify-between">
+      <footer className="py-6 border-t bg-background/95">
+        <div className="container flex flex-col items-center justify-center gap-2 h-20">
           <p className="text-center text-sm leading-loose text-muted-foreground">
-            BudgetWise © {new Date().getFullYear()} Made by jule
+            BudgetWise © {new Date().getFullYear()} by jule.
           </p>
           <p className="text-center text-xs text-muted-foreground">
             Crafted with care for your financial well-being.
