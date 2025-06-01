@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Leaf, Loader2 } from "lucide-react";
-// Removed SiteFooter import, it's in RootLayout
+import { SiteFooter } from "@/components/layout/SiteFooter";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -70,7 +70,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background to-muted/30 p-4 selection:bg-primary/20 selection:text-primary">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background to-muted/30 selection:bg-primary/20 selection:text-primary">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-6">
           <Leaf className="h-16 w-16 text-primary drop-shadow-lg" />
@@ -131,7 +131,6 @@ export default function LoginPage() {
           </CardFooter>
         </Card>
       </div>
-      {/* SiteFooter removed from here; it's in RootLayout */}
     </div>
   );
 }
