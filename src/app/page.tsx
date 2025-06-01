@@ -24,10 +24,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, query, orderBy, onSnapshot, Timestamp, where } from "firebase/firestore";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 
 export default function BudgetWisePage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
   const [dataLoading, setDataLoading] = React.useState(true);
   const [activeDialog, setActiveDialog] = React.useState<'income' | 'expense' | null>(null);
@@ -47,7 +49,6 @@ export default function BudgetWisePage() {
       const userTransactions: Transaction[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        // Ensure date is a string. Firestore Timestamps need conversion.
         const date = data.date instanceof Timestamp ? data.date.toDate().toISOString() : data.date;
         userTransactions.push({ id: doc.id, ...data, date } as Transaction);
       });
@@ -55,30 +56,45 @@ export default function BudgetWisePage() {
       setDataLoading(false);
     }, (error) => {
       console.error("Error fetching transactions: ", error);
+      toast({
+        title: "Error Fetching Data",
+        description: `Could not load transactions: ${error.message}`,
+        variant: "destructive",
+      });
       setDataLoading(false);
-      // Potentially show a toast error to the user
     });
 
     return () => unsubscribe();
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, toast]);
 
   const handleAddTransaction = async (newTransaction: Omit<Transaction, "id">) => {
-    if (!user) return; // Should not happen if auth checks are in place
+    if (!user) {
+       toast({
+        title: "Not Authenticated",
+        description: "You must be logged in to add a transaction.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const transactionsCol = collection(db, "users", user.uid, "transactions");
-      // Convert date string back to Timestamp if needed, or ensure Firestore rules handle string dates
-      // For simplicity, we're storing ISO string. If Timestamp is preferred:
-      // const transactionWithTimestamp = { ...newTransaction, date: Timestamp.fromDate(new Date(newTransaction.date)) };
-      // await addDoc(transactionsCol, transactionWithTimestamp);
       await addDoc(transactionsCol, {
         ...newTransaction,
-        date: newTransaction.date // Already an ISO string from form
+        date: newTransaction.date 
       });
-      setActiveDialog(null); // Close dialog after submission
-    } catch (error) {
-      console.error("Error adding transaction: ", error);
-      // Potentially show a toast error
+      toast({
+        title: `${newTransaction.type.charAt(0).toUpperCase() + newTransaction.type.slice(1)} Added`,
+        description: `Successfully recorded ${newTransaction.category} for $${newTransaction.amount}.`,
+      });
+      setActiveDialog(null); 
+    } catch (error: any) {
+      console.error("Error adding transaction to Firestore: ", error);
+      toast({
+        title: "Error Adding Transaction",
+        description: `Could not save transaction: ${error.message || 'Unknown error'}`,
+        variant: "destructive",
+      });
     }
   };
   
@@ -94,7 +110,7 @@ export default function BudgetWisePage() {
     });
   }, [transactions]);
 
-  if (authLoading || dataLoading) {
+  if (authLoading || (dataLoading && !user)) { // Keep loading if auth is happening or if data is loading AND user is not yet defined
     return (
       <div className="flex flex-col flex-1 items-center justify-center p-4">
         <Loader2 className="h-12 w-12 text-primary animate-spin" />
@@ -104,7 +120,6 @@ export default function BudgetWisePage() {
   }
   
   if (!user && !authLoading) {
-     // This case should ideally be handled by AuthProvider's redirect, but as a fallback:
      return (
       <div className="flex flex-col flex-1 items-center justify-center p-4">
         <p className="text-muted-foreground">Redirecting to login...</p>
@@ -166,7 +181,6 @@ export default function BudgetWisePage() {
       </div>
       <RecentTransactions transactions={transactions} />
       
-      {/* Footer moved to RootLayout for consistency, or keep it here if page-specific */}
       <footer className="py-6 border-t mt-12 bg-background/5">
         <div className="container flex flex-col items-center justify-center gap-1">
           <p className="text-center text-sm leading-loose text-muted-foreground">
