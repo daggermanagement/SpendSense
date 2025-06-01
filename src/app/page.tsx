@@ -4,14 +4,14 @@
 import * as React from "react";
 import { Leaf, PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription as ShadcnCardDescription } from "@/components/ui/card"; // Renamed to avoid conflict
 import { TransactionForm } from "@/components/budgetwise/transaction-form";
 import { MonthlyOverview } from "@/components/budgetwise/monthly-overview";
 import { SpendingChart } from "@/components/budgetwise/spending-chart";
 import { AiBudgetAdvisor } from "@/components/budgetwise/ai-budget-advisor";
 import { RecentTransactions } from "@/components/budgetwise/recent-transactions";
 import { IncomeExpenseChart } from "@/components/budgetwise/income-expense-chart";
-import { YtdOverview } from "@/components/budgetwise/ytd-overview"; // New Import
+import { YtdOverview } from "@/components/budgetwise/ytd-overview";
 import type { Transaction } from "@/types";
 import { allCategories } from "@/types";
 import {
@@ -87,7 +87,7 @@ export default function BudgetWisePage() {
         const transactionDocRef = doc(db, "users", user.uid, "transactions", existingId);
         await updateDoc(transactionDocRef, {
             ...transactionData,
-            date: transactionData.date // Ensure date is in correct format
+            date: transactionData.date
         });
         toast({
           title: "Transaction Updated",
@@ -103,7 +103,7 @@ export default function BudgetWisePage() {
           title: `${transactionData.type.charAt(0).toUpperCase() + transactionData.type.slice(1)} Added`,
           description: `Successfully recorded ${transactionData.category} for ${formatCurrency(transactionData.amount, currency)}.`,
         });
-        setActiveDialog(null); // Close add dialog
+        setActiveDialog(null); 
       }
     } catch (error: any) {
       console.error("Error saving transaction to Firestore: ", error.message, error.code, error.stack);
@@ -160,12 +160,15 @@ export default function BudgetWisePage() {
 
   return (
     <div className="container py-8">
-      <div className="grid gap-8 lg:grid-cols-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Column 1 & 2: Overviews */}
         <div className="lg:col-span-2 space-y-8">
           <MonthlyOverview transactions={transactions} />
-          <SpendingChart transactions={transactions} />
-          <IncomeExpenseChart transactions={transactions} />
+          <YtdOverview transactions={transactions} />
         </div>
+
+        {/* Column 3: Actions & AI */}
         <div className="lg:col-span-1 space-y-8">
           <Card className="shadow-lg">
             <CardHeader>
@@ -223,13 +226,25 @@ export default function BudgetWisePage() {
           </Card>
           <AiBudgetAdvisor transactions={transactions} />
         </div>
-      </div>
-      <YtdOverview transactions={transactions} />
-      <RecentTransactions
-        transactions={transactions}
-        onUpdateTransaction={handleSaveTransaction}
-        onDeleteTransaction={handleDeleteTransaction}
-      />
+
+        {/* Full-width row for Charts (spans all 3 columns of the parent grid) */}
+        <div className="lg:col-span-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <SpendingChart transactions={transactions} />
+            <IncomeExpenseChart transactions={transactions} />
+          </div>
+        </div>
+        
+        {/* Full-width row for Recent Transactions (spans all 3 columns) */}
+        <div className="lg:col-span-3">
+          <RecentTransactions
+            transactions={transactions}
+            onUpdateTransaction={handleSaveTransaction}
+            onDeleteTransaction={handleDeleteTransaction}
+          />
+        </div>
+
+      </div> {/* End of main grid */}
 
       <footer className="py-6 border-t mt-12 bg-background/5">
         <div className="container flex flex-col items-center justify-center gap-1">
@@ -244,3 +259,4 @@ export default function BudgetWisePage() {
     </div>
   );
 }
+
