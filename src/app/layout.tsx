@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { Header } from '@/components/layout/Header';
+import { SiteFooter } from '@/components/layout/SiteFooter';
 
 export const metadata: Metadata = {
   title: 'BudgetWise - Personal Finance Management',
@@ -28,10 +29,10 @@ export default function RootLayout({
           <AuthProvider>
             <div className="flex flex-col min-h-screen bg-background">
               <Header />
-              <main className="flex-1">
+              <main className="flex flex-col flex-1"> {/* Changed: Added flex and flex-col */}
                 {children}
               </main>
-              <Toaster />
+              <SiteFooter />
             </div>
           </AuthProvider>
         </ThemeProvider>

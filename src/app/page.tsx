@@ -28,6 +28,8 @@ import { collection, addDoc, doc, updateDoc, deleteDoc, query, orderBy, onSnapsh
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
+import { SiteFooter } from "@/components/layout/SiteFooter";
+
 
 export default function BudgetWisePage() {
   const { user, userPreferences, loading: authLoading } = useAuth();
@@ -97,13 +99,13 @@ export default function BudgetWisePage() {
         const transactionsCol = collection(db, "users", user.uid, "transactions");
         await addDoc(transactionsCol, {
           ...transactionData,
-          date: transactionData.date 
+          date: transactionData.date
         });
         toast({
           title: `${transactionData.type.charAt(0).toUpperCase() + transactionData.type.slice(1)} Added`,
           description: `Successfully recorded ${transactionData.category} for ${formatCurrency(transactionData.amount, currency)}.`,
         });
-        setActiveDialog(null); 
+        setActiveDialog(null);
       }
     } catch (error: any) {
       console.error("Error saving transaction to Firestore: ", error.message, error.code, error.stack);
@@ -140,8 +142,8 @@ export default function BudgetWisePage() {
       });
     }
   };
-  
-  if (authLoading || (dataLoading && !user)) { 
+
+  if (authLoading || (dataLoading && !user)) {
     return (
       <div className="flex flex-col flex-1 items-center justify-center p-4">
         <Loader2 className="h-12 w-12 text-primary animate-spin" />
@@ -162,14 +164,13 @@ export default function BudgetWisePage() {
     <div className="container py-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Column 1 & 2: Overviews */}
-        <div className="lg:col-span-2 space-y-8">
+        {/* Row 1: Overviews and Actions */}
+        <div className="lg:col-span-2 space-y-8"> {/* Takes 2/3 width */}
           <MonthlyOverview transactions={transactions} />
           <YtdOverview transactions={transactions} />
         </div>
 
-        {/* Column 3: Actions & AI */}
-        <div className="lg:col-span-1 space-y-8">
+        <div className="lg:col-span-1 space-y-8"> {/* Takes 1/3 width */}
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="font-headline text-xl">Record Transactions</CardTitle>
@@ -227,7 +228,7 @@ export default function BudgetWisePage() {
           <AiBudgetAdvisor transactions={transactions} />
         </div>
 
-        {/* Full-width row for Charts (spans all 3 columns of the parent grid) */}
+        {/* Row 2: Charts (Full Width, internally split) */}
         <div className="lg:col-span-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <SpendingChart transactions={transactions} />
@@ -235,7 +236,7 @@ export default function BudgetWisePage() {
           </div>
         </div>
         
-        {/* Full-width row for Recent Transactions (spans all 3 columns) */}
+        {/* Row 3: Recent Transactions (Full Width) */}
         <div className="lg:col-span-3">
           <RecentTransactions
             transactions={transactions}
@@ -245,18 +246,7 @@ export default function BudgetWisePage() {
         </div>
 
       </div> {/* End of main grid */}
-
-      <footer className="py-6 border-t mt-12 bg-background/5">
-        <div className="container flex flex-col items-center justify-center gap-1">
-          <p className="text-center text-sm leading-loose text-muted-foreground">
-            BudgetWise © {new Date().getFullYear()} by jule.
-          </p>
-          <p className="text-center text-xs text-muted-foreground">
-            Crafted with care for your financial well-being.
-          </p>
-        </div>
-      </footer>
+      {/* Footer removed from here, SiteFooter is in RootLayout */}
     </div>
   );
 }
-
