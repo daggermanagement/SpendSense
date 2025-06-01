@@ -1,19 +1,19 @@
 
 import type { Timestamp } from "firebase/firestore";
+import type { CurrencyCode } from "./currencyUtils"; // Assuming currencyUtils types are in a separate file or defined here
 
 export interface Transaction {
   id: string; // Firestore document ID
-  userId?: string; // To associate with a user, though path implies it
+  userId?: string; 
   type: 'income' | 'expense';
   category: string;
-  date: string; // ISO string date for consistency, can be Timestamp from Firestore
+  date: string; // ISO string date for consistency
   amount: number;
   notes?: string;
 }
 
-// Firestore specific type if you decide to work with Timestamps directly often
 export interface FirestoreTransaction extends Omit<Transaction, 'id' | 'date'> {
-  id?: string; // Optional as Firestore generates it
+  id?: string; 
   date: Timestamp; 
 }
 
@@ -29,5 +29,15 @@ export const allCategories = {
 };
 
 export interface UserBudget {
-  [category: string]: number; // e.g., { "Food & Drinks": 300, "Shopping": 150 }
+  [category: string]: number; 
 }
+
+// User preferences structure, mirrors what's in AuthContext
+export interface UserPreferences {
+  currency: CurrencyCode;
+  profileImageBase64?: string | null; // For storing Base64 image from Firestore
+  budgets?: UserBudget;
+  // profileImageStoragePath?: string | null; // This field is no longer used
+}
+
+    

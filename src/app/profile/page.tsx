@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm, Controller, useFieldArray } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,18 +12,17 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, UserCircle, Camera, Save, Trash2, DollarSign } from "lucide-react";
+import { Loader2, UserCircle, Camera, Save, DollarSign } from "lucide-react";
 import { updateProfile } from "firebase/auth";
-import { auth, db, storage } from "@/lib/firebase"; // Added storage
+import { auth, db } from "@/lib/firebase";
 import { doc, setDoc, getDoc } from "firebase/firestore";
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage"; // Added storage functions
 import { useRouter } from "next/navigation";
-import { COMMON_CURRENCIES, DEFAULT_CURRENCY, type CurrencyCode, formatCurrency } from "@/lib/currencyUtils";
+import { COMMON_CURRENCIES, DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/currencyUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { allCategories, type ExpenseCategory, type UserBudget } from "@/types";
+import { allCategories, type ExpenseCategory, type UserBudget, type UserPreferences } from "@/types";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress"; // Added Progress
+import { Progress } from "@/components/ui/progress";
 
 const budgetEntrySchema = z.object({
   category: z.custom<ExpenseCategory>(),
@@ -40,7 +39,7 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-const MAX_FILE_SIZE_MB = 1;
+const MAX_FILE_SIZE_MB = 0.1; // 100KB for Base64
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export default function ProfilePage() {
@@ -49,7 +48,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isUploadingImage, setIsUploadingImage] = React.useState(false);
-  const [uploadProgress, setUploadProgress] = React.useState(0);
+  const [uploadProgress, setUploadProgress] = React.useState(0); // Kept for potential future progress logic with Base64
   const [localPhotoPreview, setLocalPhotoPreview] = React.useState<string | null | undefined>(null);
   
   const form = useForm<ProfileFormValues>({
@@ -60,12 +59,13 @@ export default function ProfilePage() {
       budgets: allCategories.expense.map(cat => ({ category: cat as ExpenseCategory, amount: undefined })),
     }
   });
-  const { handleSubmit, control, watch, formState: { errors }, setValue } = form;
+  const { handleSubmit, control, watch, formState: { errors }, setValue, reset } = form;
 
-  const { fields } = useFieldArray({
+  const { fields } = Controller({
     control,
     name: "budgets",
   });
+
 
   React.useEffect(() => {
     if (!authLoading && !user) {
@@ -73,22 +73,17 @@ export default function ProfilePage() {
       return;
     }
     if (user) {
-      setValue("displayName", user.displayName || "");
-      setLocalPhotoPreview(user.photoURL || null); // Initialize with current auth photoURL
+      reset({ // Use reset to ensure form is fully updated with new defaults
+        displayName: user.displayName || "",
+        currency: userPreferences?.currency || DEFAULT_CURRENCY,
+        budgets: allCategories.expense.map(cat => ({
+          category: cat as ExpenseCategory,
+          amount: userPreferences?.budgets?.[cat] || undefined,
+        })),
+      });
+      setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null);
     }
-    if (userPreferences) {
-      setValue("currency", userPreferences.currency || DEFAULT_CURRENCY);
-      // Prefer Firestore image if available, else Auth photoURL
-      setLocalPhotoPreview(userPreferences.profileImageBase64 || user?.photoURL || null);
-      
-      const existingBudgetsArray = allCategories.expense.map(cat => ({
-        category: cat as ExpenseCategory,
-        amount: userPreferences.budgets?.[cat] || undefined,
-      }));
-      setValue("budgets", existingBudgetsArray);
-    }
-
-  }, [user, authLoading, setValue, router, userPreferences]);
+  }, [user, authLoading, userPreferences, router, reset]);
 
 
   const handleProfileUpdate = async (data: ProfileFormValues) => {
@@ -155,84 +150,81 @@ export default function ProfilePage() {
     }
 
     setIsUploadingImage(true);
-    setUploadProgress(0);
-    
-    // For immediate preview before upload completes
+    setUploadProgress(0); // Reset progress
+
     const reader = new FileReader();
-    reader.onload = (e) => setLocalPhotoPreview(e.target?.result as string);
-    reader.readAsDataURL(file);
+    reader.onloadstart = () => {
+      setUploadProgress(30); // Simulate start of reading
+    };
+    reader.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const progress = (event.loaded / event.total) * 50; // Reading part of progress
+        setUploadProgress(30 + progress);
+      }
+    };
+    reader.onloadend = async () => {
+      const base64DataUri = reader.result as string;
+      setLocalPhotoPreview(base64DataUri); // Immediate preview with Base64 string
+      setUploadProgress(80); // Simulate processing
 
-    const oldPhotoPath = userPreferences?.profileImageStoragePath;
+      try {
+        // Save Base64 to Firestore
+        const userDocRef = doc(db, "users", user.uid);
+        const newPreferences: Partial<UserPreferences> = { 
+          profileImageBase64: base64DataUri,
+        };
+        await setDoc(userDocRef, newPreferences , { merge: true });
 
-    const storageRef = ref(storage, `profileImages/${user.uid}/${file.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
-
-    uploadTask.on(
-      "state_changed",
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setUploadProgress(progress);
-      },
-      (error) => {
-        setIsUploadingImage(false);
-        setUploadProgress(0);
+        // Update local AuthContext state
+        if (setUserPreferences) {
+          setUserPreferences(prev => ({ ...prev!, ...newPreferences }));
+        }
+        
+        // Attempt to update Firebase Auth photoURL (might fail if too long)
+        try {
+          await updateProfile(auth.currentUser!, { photoURL: base64DataUri });
+          if (setUser && auth.currentUser) {
+            // Ensure context user reflects the potentially updated auth.currentUser
+            setUser(prevState => ({...prevState!, photoURL: auth.currentUser?.photoURL}));
+          }
+        } catch (authError: any) {
+          console.warn("Failed to update Firebase Auth photoURL (might be too long):", authError.message);
+           toast({
+            title: "Auth Photo Not Updated",
+            description: "Image saved to profile, but Firebase Auth photo might be unchanged (possibly due to length).",
+            variant: "default", // It's not destructive, just an info
+            duration: 5000,
+          });
+        }
+        
+        setLocalPhotoPreview(base64DataUri); // Final update to ensure UI reflects the saved data
+        toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
+        setUploadProgress(100);
+      } catch (error: any) {
         setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null); // Revert preview
         toast({
-          title: "Upload Failed",
-          description: error.message || "Could not upload profile picture.",
+          title: "Image Update Failed",
+          description: error.message || "Could not save new profile picture.",
           variant: "destructive",
         });
-        console.error("Error uploading image:", error);
-      },
-      async () => {
-        try {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          
-          // Update Firebase Auth profile
-          await updateProfile(auth.currentUser!, { photoURL: downloadURL });
-
-          // Update Firestore document
-          const userDocRef = doc(db, "users", user.uid);
-          const newPreferences: Partial<UserPreferences> = { 
-            profileImageBase64: downloadURL, // Storing URL from storage, not base64
-            profileImageStoragePath: uploadTask.snapshot.ref.fullPath // Store path for deletion
-          };
-          await setDoc(userDocRef, newPreferences , { merge: true });
-
-          // Update local context
-          if (setUserPreferences) {
-            setUserPreferences(prev => ({ ...prev!, ...newPreferences }));
-          }
-           if (setUser && auth.currentUser) {
-            setUser(prevState => ({...prevState!, photoURL: downloadURL}));
-          }
-          setLocalPhotoPreview(downloadURL); // Update preview with final URL
-
-          // Delete old image from storage if it exists and is different
-          if (oldPhotoPath && oldPhotoPath !== uploadTask.snapshot.ref.fullPath) {
-            try {
-              const oldImageRef = ref(storage, oldPhotoPath);
-              await deleteObject(oldImageRef);
-            } catch (deleteError) {
-              console.warn("Could not delete old profile image:", deleteError);
-            }
-          }
-
-          toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
-        } catch (error: any) {
-          setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null); // Revert preview
-          toast({
-            title: "Image Update Failed",
-            description: error.message || "Could not save new profile picture.",
-            variant: "destructive",
-          });
-          console.error("Error updating profile with new image:", error);
-        } finally {
-          setIsUploadingImage(false);
-          setUploadProgress(0);
-        }
+        console.error("Error updating profile with new image:", error);
+        setUploadProgress(0);
+      } finally {
+        setIsUploadingImage(false);
+        // Optionally reset progress after a delay if it's 100
+        // setTimeout(() => setUploadProgress(0), 2000); 
       }
-    );
+    };
+    reader.onerror = () => {
+      setIsUploadingImage(false);
+      setUploadProgress(0);
+      toast({
+        title: "File Read Error",
+        description: "Could not read the selected file.",
+        variant: "destructive",
+      });
+    };
+    reader.readAsDataURL(file);
   };
 
 
@@ -260,7 +252,7 @@ export default function ProfilePage() {
       <Card className="w-full max-w-2xl mx-auto shadow-xl">
         <CardHeader className="items-center text-center">
           <div className="relative group mb-6">
-            <Avatar className="h-32 w-32 border-4 border-primary/50 group-hover:opacity-80 transition-opacity">
+            <Avatar key={localPhotoPreview || 'avatar-placeholder-key'} className="h-32 w-32 border-4 border-primary/50 group-hover:opacity-80 transition-opacity">
               <AvatarImage src={localPhotoPreview || undefined} alt={user.displayName || user.email || "User"} />
               <AvatarFallback className="text-4xl">
                 {getInitials(user.displayName)}
@@ -349,9 +341,9 @@ export default function ProfilePage() {
                 </h3>
                 <CardDescription>Set your target spending for each expense category. Leave blank or 0 if no budget.</CardDescription>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                  {fields.map((item, index) => (
+                  {allCategories.expense.map((categoryName, index) => (
                      <FormField
-                        key={item.id}
+                        key={categoryName} // Use category name as key for stability
                         control={control}
                         name={`budgets.${index}.amount`}
                         render={({ field: { onChange, value, ...restField } }) => (
@@ -363,14 +355,14 @@ export default function ProfilePage() {
                                 placeholder="0.00"
                                 step="0.01"
                                 {...restField}
-                                value={value === undefined ? '' : String(value)}
+                                value={value === undefined ? '' : String(value)} // Handle undefined for empty input
                                 onChange={(e) => {
                                     const numVal = parseFloat(e.target.value);
                                     onChange(isNaN(numVal) ? undefined : numVal);
                                 }}
                               />
                             </FormControl>
-                            <FormMessage />
+                             <FormMessage />
                           </FormItem>
                         )}
                       />

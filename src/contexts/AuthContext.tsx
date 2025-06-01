@@ -6,15 +6,18 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { useRouter, usePathname } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore'; // Added setDoc
 import type { CurrencyCode } from '@/lib/currencyUtils';
 import { DEFAULT_CURRENCY } from '@/lib/currencyUtils';
 import type { UserBudget } from '@/types';
 
+// This interface is also defined in /types - consider unifying if it causes issues
+// For now, ensure they are in sync.
 export interface UserPreferences {
   currency: CurrencyCode;
-  profileImageBase64?: string | null;
-  budgets?: UserBudget; // Expense category budgets
+  profileImageBase64?: string | null; // For storing Base64 image from Firestore
+  budgets?: UserBudget; 
+  // profileImageStoragePath?: string | null; // No longer used if storing Base64 in Firestore
 }
 
 interface AuthContextType {
@@ -50,17 +53,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               budgets: (data.budgets as UserBudget) || {},
             });
           } else {
-            setUserPreferences({ 
+            // If user document doesn't exist, create it with defaults
+            const defaultPrefs: UserPreferences = {
               currency: DEFAULT_CURRENCY,
-              profileImageBase64: null,
+              profileImageBase64: currentUser.photoURL || null, // Use auth photoURL as initial if available
               budgets: {},
-            });
+            };
+            await setDoc(userDocRef, defaultPrefs);
+            setUserPreferences(defaultPrefs);
           }
         } catch (error) {
-          console.error("Error fetching user preferences:", error);
+          console.error("Error fetching or creating user preferences:", error);
           setUserPreferences({ 
             currency: DEFAULT_CURRENCY,
-            profileImageBase64: null,
+            profileImageBase64: currentUser.photoURL || null,
             budgets: {},
           });
         }
@@ -98,3 +104,5 @@ export function useAuth() {
   }
   return context;
 }
+
+    
