@@ -2,17 +2,16 @@
 "use client";
 
 import * as React from "react";
-import { useForm, Controller } from "react-hook-form"; // Removed useFieldArray as it's not used with the current static field generation
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label"; // Ensure Label is imported for direct use if any (though FormLabel is preferred within FormField)
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, UserCircle, Camera, Save, DollarSign } from "lucide-react";
+import { Loader2, UserCircle, Camera, Save, DollarSign, ArrowLeft } from "lucide-react"; // Added ArrowLeft
 import { updateProfile } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, setDoc, getDoc } from "firebase/firestore";
@@ -21,6 +20,7 @@ import { COMMON_CURRENCIES, DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/cu
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { allCategories, type ExpenseCategory, type UserBudget, type UserPreferences } from "@/types";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 
@@ -55,15 +55,11 @@ export default function ProfilePage() {
     resolver: zodResolver(profileSchema),
     defaultValues: {
       displayName: "",
-      currency: DEFAULT_CURRENCY,
+      currency: userPreferences?.currency || DEFAULT_CURRENCY,
       budgets: allCategories.expense.map(cat => ({ category: cat as ExpenseCategory, amount: undefined })),
     }
   });
   const { handleSubmit, control, watch, formState: { errors }, setValue, reset } = form;
-
-  // The problematic line `const { fields } = Controller(...)` was removed as `fields` from this declaration was not used,
-  // and it was causing the "props.render is not a function" error.
-  // The budget fields are rendered by iterating `allCategories.expense` and using `FormField` correctly.
 
   React.useEffect(() => {
     if (!authLoading && !user) {
@@ -71,12 +67,13 @@ export default function ProfilePage() {
       return;
     }
     if (user) {
+      const currentBudgets = userPreferences?.budgets || {};
       reset({ 
         displayName: user.displayName || "",
         currency: userPreferences?.currency || DEFAULT_CURRENCY,
         budgets: allCategories.expense.map(cat => ({
           category: cat as ExpenseCategory,
-          amount: userPreferences?.budgets?.[cat] || undefined,
+          amount: currentBudgets[cat] || undefined,
         })),
       });
       setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null);
@@ -237,7 +234,7 @@ export default function ProfilePage() {
     );
   }
   
-  const currentCurrency = watch("currency") || DEFAULT_CURRENCY;
+  const currentCurrency = watch("currency") || userPreferences?.currency || DEFAULT_CURRENCY;
 
   return (
     <div className="container py-12">
@@ -305,7 +302,7 @@ export default function ProfilePage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Preferred Currency</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || DEFAULT_CURRENCY}>
                       <FormControl>
                         <SelectTrigger id="currency">
                           <SelectValue placeholder="Select currency" />
@@ -370,6 +367,18 @@ export default function ProfilePage() {
             </form>
           </Form>
         </CardContent>
+        <CardFooter className="flex flex-col gap-4 pt-6">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => router.back()} 
+            className="w-full"
+            disabled={isSubmitting || isUploadingImage}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+        </CardFooter>
       </Card>
     </div>
   );
