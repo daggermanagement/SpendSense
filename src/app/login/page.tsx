@@ -25,7 +25,7 @@ import { Leaf, Loader2 } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  password: z.string().min(1, { message: "Password is required." }), // Min 1, Firebase handles length
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -47,12 +47,20 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
-      toast({ title: "Login Successful", description: "Welcome back!" });
+      toast({ title: "Login Successful", description: "Welcome back to BudgetWise!" });
       router.push("/");
     } catch (error: any) {
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+        errorMessage = "Invalid email or password. Please check your credentials.";
+      } else if (error.code === "auth/too-many-requests") {
+        errorMessage = "Too many login attempts. Please try again later.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
       toast({
         title: "Login Failed",
-        description: error.message || "An unexpected error occurred.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -61,42 +69,70 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <Leaf className="h-12 w-12 text-primary" />
-          </div>
-          <CardTitle className="text-3xl font-headline">Welcome Back!</CardTitle>
-          <CardDescription>Log in to manage your finances with BudgetWise.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="your@email.com" {...register("email")} />
-              {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="••••••••" {...register("password")} />
-              {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
-            </div>
-            <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Log In
-            </Button>
-          </form>
-        </CardContent>
-        <CardFooter className="flex-col items-center gap-2">
-          <p className="text-sm text-muted-foreground">
-            Don&apos;t have an account?{" "}
-            <Link href="/register" className="font-medium text-primary hover:underline">
-              Register here
-            </Link>
-          </p>
-        </CardFooter>
-      </Card>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background to-muted/30 p-4 selection:bg-primary/20 selection:text-primary">
+      <div className="w-full max-w-md">
+        <div className="flex justify-center mb-6">
+          <Leaf className="h-16 w-16 text-primary drop-shadow-lg" />
+        </div>
+        <Card className="shadow-2xl rounded-xl">
+          <CardHeader className="text-center space-y-2 pt-8">
+            <CardTitle className="text-3xl font-headline tracking-tight">Welcome Back!</CardTitle>
+            <CardDescription className="text-md">Log in to manage your finances with BudgetWise.</CardDescription>
+          </CardHeader>
+          <CardContent className="py-6 px-8">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="you@example.com" 
+                  {...register("email")} 
+                  className={errors.email ? "border-destructive focus-visible:ring-destructive" : ""}
+                  aria-invalid={errors.email ? "true" : "false"}
+                />
+                {errors.email && <p className="text-sm text-destructive pt-1">{errors.email.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  {/* <Link href="/forgot-password" // Future feature placeholder
+                        className="text-sm font-medium text-primary hover:underline">
+                    Forgot password?
+                  </Link> */}
+                </div>
+                <Input 
+                  id="password" 
+                  type="password" 
+                  placeholder="••••••••" 
+                  {...register("password")} 
+                  className={errors.password ? "border-destructive focus-visible:ring-destructive" : ""}
+                  aria-invalid={errors.password ? "true" : "false"}
+                />
+                {errors.password && <p className="text-sm text-destructive pt-1">{errors.password.message}</p>}
+              </div>
+              <Button type="submit" className="w-full text-lg py-6 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-shadow duration-200" disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                ) : (
+                  "Log In"
+                )}
+              </Button>
+            </form>
+          </CardContent>
+          <CardFooter className="flex-col items-center gap-3 pb-8">
+            <p className="text-sm text-muted-foreground">
+              Don&apos;t have an account?{" "}
+              <Link href="/register" className="font-semibold text-primary hover:underline">
+                Create one here
+              </Link>
+            </p>
+          </CardFooter>
+        </Card>
+      </div>
+      <p className="text-xs text-muted-foreground mt-8 text-center">
+        BudgetWise © {new Date().getFullYear()} - Your Personal Finance Companion.
+      </p>
     </div>
   );
 }

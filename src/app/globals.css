@@ -1,11 +1,13 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
+    /* Default Fallback Theme (Light) - These will be overridden by JS */
     --background: 0 0% 98%; /* #FAFAFA */
-    --foreground: 222.2 84% 4.9%; /* Dark text for readability */
+    --foreground: 222.2 84% 4.9%; 
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -13,27 +15,27 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 120 73% 75%; /* Light Green #90EE90 */
-    --primary-foreground: 120 100% 10%; /* Dark Green text for contrast on primary */
+    --primary: 120 73% 75%; 
+    --primary-foreground: 120 100% 10%;
     
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 84% 4.9%;
 
     --muted: 210 40% 96.1%;
-    --muted-foreground: 224 7.1% 44.1%; /* Slightly darker muted text */
+    --muted-foreground: 224 7.1% 44.1%;
 
-    --accent: 195 53% 79%; /* Light Blue #ADD8E6 */
-    --accent-foreground: 195 100% 15%; /* Dark Blue text for contrast on accent */
+    --accent: 195 53% 79%; 
+    --accent-foreground: 195 100% 15%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 120 73% 65%; /* Slightly darker green for focus rings */
+    --ring: 120 73% 65%;
 
-    --chart-1: 120 73% 75%; /* Primary color for charts */
-    --chart-2: 195 53% 79%; /* Accent color for charts */
+    --chart-1: 120 73% 75%;
+    --chart-2: 195 53% 79%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
@@ -41,7 +43,9 @@
     --radius: 0.5rem;
   }
 
+  /* Base dark mode structural styles if JS fails or for non-color aspects */
   .dark {
+     /* These are fallbacks if JS doesn't set specific dark theme colors */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
@@ -51,8 +55,8 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 120 73% 75%;
-    --primary-foreground: 120 100% 10%;
+    --primary: 120 73% 75%; /* Default dark primary */
+    --primary-foreground: 120 100% 10%; /* Default dark primary foreground */
     
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -60,18 +64,19 @@
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 195 53% 79%;
-    --accent-foreground: 195 100% 15%;
+    --accent: 195 53% 79%; /* Default dark accent */
+    --accent-foreground: 195 100% 15%; /* Default dark accent foreground */
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 120 73% 65%;
+    --ring: 120 73% 65%; /* Default dark ring */
 
     --chart-1: 120 73% 75%;
     --chart-2: 195 53% 79%;
+    /* Chart colors might need specific dark versions if not handled by theme object */
   }
 }
 
