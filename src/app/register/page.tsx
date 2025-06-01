@@ -22,7 +22,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Leaf, Loader2, User } from "lucide-react"; // Added User icon
-import { SiteFooter } from "@/components/layout/SiteFooter";
 
 const registerSchema = z.object({
   displayName: z.string().min(2, { message: "Name must be at least 2 characters."}).max(50, {message: "Name cannot exceed 50 characters."}),
@@ -84,8 +83,8 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background to-muted/30 selection:bg-primary/20 selection:text-primary">
-      <div className="w-full max-w-md">
+    <div className="flex flex-1 flex-col items-center justify-center bg-gradient-to-br from-background to-muted/30 selection:bg-primary/20 selection:text-primary py-6 sm:py-8">
+      <div className="w-full max-w-md px-4">
          <div className="flex justify-center mb-6">
           <Leaf className="h-16 w-16 text-primary drop-shadow-lg" />
         </div>
