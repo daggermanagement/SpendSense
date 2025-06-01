@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -34,6 +35,8 @@ import {
 import { cn } from "@/lib/utils";
 import type { Transaction } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
 
 interface TransactionFormProps {
   type: "income" | "expense";
@@ -50,6 +53,9 @@ const formSchema = z.object({
 
 export function TransactionForm({ type, categories, onAddTransaction }: TransactionFormProps) {
   const { toast } = useToast();
+  const { userPreferences } = useAuth();
+  const currency = React.useMemo(() => userPreferences?.currency || DEFAULT_CURRENCY, [userPreferences]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -61,17 +67,16 @@ export function TransactionForm({ type, categories, onAddTransaction }: Transact
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    onAddTransaction({
+    const newTransaction: Omit<Transaction, "id"> = {
       type,
       amount: values.amount,
       category: values.category,
       date: values.date.toISOString(),
       notes: values.notes,
-    });
-    toast({
-      title: `${type.charAt(0).toUpperCase() + type.slice(1)} Added`,
-      description: `Successfully recorded ${values.category} for $${values.amount}.`,
-    });
+    };
+    onAddTransaction(newTransaction);
+    // Toast is now handled by the parent page (src/app/page.tsx)
+    // to ensure it uses the latest userPreferences for currency formatting immediately after context update.
     form.reset({ amount: 0, category: "", date: new Date(), notes: "" });
   }
 
@@ -83,7 +88,7 @@ export function TransactionForm({ type, categories, onAddTransaction }: Transact
           name="amount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Amount</FormLabel>
+              <FormLabel>Amount ({currency})</FormLabel>
               <FormControl>
                 <Input type="number" step="0.01" placeholder="0.00" {...field} />
               </FormControl>
@@ -156,7 +161,8 @@ export function TransactionForm({ type, categories, onAddTransaction }: Transact
             </FormItem>
           )}
         />
-        {type === "expense" && (
+        {/* Notes field only for expense by default, this can be changed */}
+        {(type === "expense" || type === "income") && ( // Show notes for both income and expense
           <FormField
             control={form.control}
             name="notes"
@@ -164,7 +170,7 @@ export function TransactionForm({ type, categories, onAddTransaction }: Transact
               <FormItem>
                 <FormLabel>Notes (Optional)</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="Add any notes for this expense..." {...field} />
+                  <Textarea placeholder={`Add any notes for this ${type}...`} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

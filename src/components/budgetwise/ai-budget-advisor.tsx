@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -10,16 +11,21 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Sparkles } from "lucide-react";
 import type { Transaction } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { DEFAULT_CURRENCY } from "@/lib/currencyUtils";
 
 interface AiBudgetAdvisorProps {
   transactions: Transaction[];
 }
 
 export function AiBudgetAdvisor({ transactions }: AiBudgetAdvisorProps) {
+  const { userPreferences } = useAuth();
   const [financialGoals, setFinancialGoals] = React.useState("");
   const [advice, setAdvice] = React.useState<BudgetAdvisorOutput | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
+
+  const currency = React.useMemo(() => userPreferences?.currency || DEFAULT_CURRENCY, [userPreferences]);
 
   const handleGetAdvice = async () => {
     setIsLoading(true);
@@ -56,6 +62,7 @@ export function AiBudgetAdvisor({ transactions }: AiBudgetAdvisorProps) {
       income,
       expenses,
       financialGoals: financialGoals || "General financial health improvement.",
+      currencyCode: currency,
     };
 
     try {
@@ -84,7 +91,7 @@ export function AiBudgetAdvisor({ transactions }: AiBudgetAdvisorProps) {
           <Sparkles className="mr-2 h-6 w-6 text-primary" />
           AI Budget Advisor
         </CardTitle>
-        <CardDescription>Get personalized suggestions to optimize your budget.</CardDescription>
+        <CardDescription>Get personalized suggestions to optimize your budget (in {currency}).</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>

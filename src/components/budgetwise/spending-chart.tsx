@@ -1,15 +1,13 @@
+
 "use client";
 
 import * as React from "react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { Transaction } from "@/types";
-import { CategoryIcon, IconsMap } from "./icons"; // Assuming IconsMap is exported for colors
-import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
 
-interface SpendingChartProps {
-  transactions: Transaction[];
-}
 
 const COLORS = [
   'hsl(var(--chart-1))', 
@@ -20,9 +18,14 @@ const COLORS = [
   '#FFBB28', '#FF8042', '#00C49F', '#FFBB28', '#AF19FF' 
 ];
 
+interface SpendingChartProps {
+  transactions: Transaction[];
+}
 
 export function SpendingChart({ transactions }: SpendingChartProps) {
+  const { userPreferences, loading: authLoading } = useAuth();
   const [chartData, setChartData] = React.useState<Array<{ name: string; value: number }>>([]);
+  const currency = React.useMemo(() => userPreferences?.currency || DEFAULT_CURRENCY, [userPreferences]);
 
   React.useEffect(() => {
     const currentDate = new Date();
@@ -43,10 +46,15 @@ export function SpendingChart({ transactions }: SpendingChartProps) {
 
     const formattedData = Object.entries(aggregatedExpenses)
       .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value); // Sort for consistent color assignment
+      .sort((a, b) => b.value - a.value); 
 
     setChartData(formattedData);
   }, [transactions]);
+
+  const tooltipFormatter = (value: number) => {
+    if (authLoading && !userPreferences) return value.toString();
+    return formatCurrency(value, currency);
+  };
 
   if (chartData.length === 0) {
     return (
@@ -87,7 +95,7 @@ export function SpendingChart({ transactions }: SpendingChartProps) {
               ))}
             </Pie>
             <Tooltip
-              formatter={(value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)}
+              formatter={tooltipFormatter}
               contentStyle={{ backgroundColor: 'hsl(var(--background))', borderRadius: 'var(--radius)', border: '1px solid hsl(var(--border))' }}
             />
             <Legend iconType="circle" />

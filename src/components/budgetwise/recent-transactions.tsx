@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -9,6 +10,8 @@ import { format } from "date-fns";
 import { CategoryIcon, IconName } from "./icons";
 import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, ListChecks } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
 
 interface RecentTransactionsProps {
   transactions: Transaction[];
@@ -16,12 +19,16 @@ interface RecentTransactionsProps {
 }
 
 export function RecentTransactions({ transactions, count = 10 }: RecentTransactionsProps) {
+  const { userPreferences, loading: authLoading } = useAuth();
+  const currency = React.useMemo(() => userPreferences?.currency || DEFAULT_CURRENCY, [userPreferences]);
+
   const recentTransactions = [...transactions]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, count);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+  const displayCurrency = (amount: number) => {
+    if (authLoading && !userPreferences) return "Loading...";
+    return formatCurrency(amount, currency);
   };
 
   if (transactions.length === 0) {
@@ -69,7 +76,7 @@ export function RecentTransactions({ transactions, count = 10 }: RecentTransacti
                    <Badge variant={transaction.type === 'income' ? 'default' : 'destructive'} 
                          className={cn(transaction.type === 'income' ? 'bg-green-500/20 text-green-700 border-green-500/30 dark:bg-green-500/10 dark:text-green-300 dark:border-green-500/20' : 'bg-red-500/20 text-red-700 border-red-500/30 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20')}>
                     {transaction.type === 'income' ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-                    {formatCurrency(transaction.amount)}
+                    {displayCurrency(transaction.amount)}
                   </Badge>
                 </div>
               </li>

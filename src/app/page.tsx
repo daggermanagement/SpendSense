@@ -10,7 +10,7 @@ import { MonthlyOverview } from "@/components/budgetwise/monthly-overview";
 import { SpendingChart } from "@/components/budgetwise/spending-chart";
 import { AiBudgetAdvisor } from "@/components/budgetwise/ai-budget-advisor";
 import { RecentTransactions } from "@/components/budgetwise/recent-transactions";
-import { IncomeExpenseChart } from "@/components/budgetwise/income-expense-chart"; // Added import
+import { IncomeExpenseChart } from "@/components/budgetwise/income-expense-chart";
 import type { Transaction } from "@/types";
 import { allCategories } from "@/types";
 import {
@@ -26,14 +26,17 @@ import { db } from "@/lib/firebase";
 import { collection, addDoc, query, orderBy, onSnapshot, Timestamp, where } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
 
 export default function BudgetWisePage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, userPreferences, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
   const [dataLoading, setDataLoading] = React.useState(true);
   const [activeDialog, setActiveDialog] = React.useState<'income' | 'expense' | null>(null);
+
+  const currency = React.useMemo(() => userPreferences?.currency || DEFAULT_CURRENCY, [userPreferences]);
 
   React.useEffect(() => {
     if (authLoading) return;
@@ -82,11 +85,11 @@ export default function BudgetWisePage() {
       const transactionsCol = collection(db, "users", user.uid, "transactions");
       await addDoc(transactionsCol, {
         ...newTransaction,
-        date: newTransaction.date
+        date: newTransaction.date 
       });
       toast({
         title: `${newTransaction.type.charAt(0).toUpperCase() + newTransaction.type.slice(1)} Added`,
-        description: `Successfully recorded ${newTransaction.category} for $${newTransaction.amount}.`,
+        description: `Successfully recorded ${newTransaction.category} for ${formatCurrency(newTransaction.amount, currency)}.`,
       });
       setActiveDialog(null);
     } catch (error: any) {
@@ -98,20 +101,8 @@ export default function BudgetWisePage() {
       });
     }
   };
-
-  const currentMonthExpenses = React.useMemo(() => {
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth();
-    const currentYear = currentDate.getFullYear();
-    return transactions.filter(t => {
-      const transactionDate = new Date(t.date);
-      return t.type === 'expense' &&
-             transactionDate.getMonth() === currentMonth &&
-             transactionDate.getFullYear() === currentYear;
-    });
-  }, [transactions]);
-
-  if (authLoading || (dataLoading && !user)) { // Keep loading if auth is happening or if data is loading AND user is not yet defined
+  
+  if (authLoading || (dataLoading && !user)) { 
     return (
       <div className="flex flex-col flex-1 items-center justify-center p-4">
         <Loader2 className="h-12 w-12 text-primary animate-spin" />
@@ -128,14 +119,13 @@ export default function BudgetWisePage() {
     );
   }
 
-
   return (
     <div className="container py-8">
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
           <MonthlyOverview transactions={transactions} />
           <SpendingChart transactions={transactions} />
-          <IncomeExpenseChart transactions={transactions} /> {/* Added new chart */}
+          <IncomeExpenseChart transactions={transactions} />
         </div>
         <div className="lg:col-span-1 space-y-8">
           <Card className="shadow-lg">
@@ -196,4 +186,3 @@ export default function BudgetWisePage() {
     </div>
   );
 }
-

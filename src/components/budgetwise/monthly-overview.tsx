@@ -1,21 +1,27 @@
+
 "use client";
 
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowDownCircle, ArrowUpCircle, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import type { Transaction } from "@/types";
 import { format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
 
 interface MonthlyOverviewProps {
   transactions: Transaction[];
 }
 
 export function MonthlyOverview({ transactions }: MonthlyOverviewProps) {
+  const { userPreferences, loading: authLoading } = useAuth();
   const [currentMonthData, setCurrentMonthData] = React.useState({
     totalIncome: 0,
     totalExpenses: 0,
     netBalance: 0,
   });
+
+  const currency = React.useMemo(() => userPreferences?.currency || DEFAULT_CURRENCY, [userPreferences]);
 
   React.useEffect(() => {
     const currentDate = new Date();
@@ -44,8 +50,9 @@ export function MonthlyOverview({ transactions }: MonthlyOverviewProps) {
 
   const { totalIncome, totalExpenses, netBalance } = currentMonthData;
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+  const displayCurrency = (amount: number) => {
+    if (authLoading && !userPreferences) return "Loading..."; // Or a skeleton loader
+    return formatCurrency(amount, currency);
   };
 
   return (
@@ -62,7 +69,7 @@ export function MonthlyOverview({ transactions }: MonthlyOverviewProps) {
               <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-800 dark:text-green-200">{formatCurrency(totalIncome)}</div>
+              <div className="text-2xl font-bold text-green-800 dark:text-green-200">{displayCurrency(totalIncome)}</div>
             </CardContent>
           </Card>
           <Card className="bg-red-100 dark:bg-red-900/30 border-red-500">
@@ -71,7 +78,7 @@ export function MonthlyOverview({ transactions }: MonthlyOverviewProps) {
               <TrendingDown className="h-5 w-5 text-red-600 dark:text-red-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-800 dark:text-red-200">{formatCurrency(totalExpenses)}</div>
+              <div className="text-2xl font-bold text-red-800 dark:text-red-200">{displayCurrency(totalExpenses)}</div>
             </CardContent>
           </Card>
           <Card className={netBalance >= 0 ? "bg-blue-100 dark:bg-blue-900/30 border-blue-500" : "bg-orange-100 dark:bg-orange-900/30 border-orange-500"}>
@@ -81,7 +88,7 @@ export function MonthlyOverview({ transactions }: MonthlyOverviewProps) {
             </CardHeader>
             <CardContent>
               <div className={`text-2xl font-bold ${netBalance >= 0 ? 'text-blue-800 dark:text-blue-200' : 'text-orange-800 dark:text-orange-200'}`}>
-                {formatCurrency(netBalance)}
+                {displayCurrency(netBalance)}
               </div>
             </CardContent>
           </Card>

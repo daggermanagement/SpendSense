@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,37 +12,45 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, UserCircle, Edit3, Camera } from "lucide-react";
+import { Loader2, UserCircle, Edit3, Camera, Save } from "lucide-react";
 import { updateProfile } from "firebase/auth";
-import { auth, db } from "@/lib/firebase"; // Removed storage import
+import { auth, db } from "@/lib/firebase";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
+import { COMMON_CURRENCIES, DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/currencyUtils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const profileSchema = z.object({
   displayName: z.string().min(2, { message: "Display name must be at least 2 characters." }).max(50, { message: "Display name cannot exceed 50 characters." }),
+  currency: z.custom<CurrencyCode>(val => COMMON_CURRENCIES.some(c => c.code === val), {
+    message: "Invalid currency selected.",
+  }).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-// Max original file size: 100KB. Base64 will be ~133KB.
 const MAX_FILE_SIZE_BYTES = 100 * 1024; 
 
 export default function ProfilePage() {
-  const { user, loading: authLoading, setUser } = useAuth();
+  const { user, loading: authLoading, setUser, userPreferences, setUserPreferences } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const [isSubmittingName, setIsSubmittingName] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isUploadingImage, setIsUploadingImage] = React.useState(false);
   const [localPhotoPreview, setLocalPhotoPreview] = React.useState<string | null | undefined>(null);
-  const [uploadProgress, setUploadProgress] = React.useState<number | null>(null); // Kept for UI consistency, but won't show real progress for Base64
-
+  
   const {
     register,
     handleSubmit,
-    setValue: setFormValue, // Renamed to avoid conflict
+    setValue: setFormValue,
+    control, // For react-hook-form controlled Select
     formState: { errors },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
+    defaultValues: {
+      displayName: "",
+      currency: userPreferences?.currency || DEFAULT_CURRENCY,
+    }
   });
 
   React.useEffect(() => {
@@ -52,7 +60,8 @@ export default function ProfilePage() {
     }
     if (user) {
       setFormValue("displayName", user.displayName || "");
-      // Attempt to load from Firestore first, then Auth photoURL
+      setFormValue("currency", userPreferences?.currency || DEFAULT_CURRENCY);
+
       const loadProfileImage = async () => {
         if (user.uid) {
           try {
@@ -69,35 +78,43 @@ export default function ProfilePage() {
             console.error("Error fetching profile image from Firestore:", error);
           }
         }
-        setLocalPhotoPreview(user.photoURL); // Fallback to auth photoURL
+        setLocalPhotoPreview(user.photoURL); 
       };
       loadProfileImage();
     }
-  }, [user, authLoading, setFormValue, router]);
+  }, [user, authLoading, setFormValue, router, userPreferences]);
 
-  const handleNameUpdate = async (data: ProfileFormValues) => {
+  const handleProfileUpdate = async (data: ProfileFormValues) => {
     if (!user || !auth.currentUser) return;
-    setIsSubmittingName(true);
+    setIsSubmitting(true);
     try {
-      await updateProfile(auth.currentUser, { displayName: data.displayName });
-      if (setUser && auth.currentUser) {
-        // Create a new user object for the context to ensure re-render
-        const updatedUserContext = { 
-          ...user, 
-          displayName: auth.currentUser.displayName 
-        };
-        setUser(updatedUserContext);
+      // Update display name in Auth
+      if (data.displayName !== user.displayName) {
+        await updateProfile(auth.currentUser, { displayName: data.displayName });
+        if (setUser && auth.currentUser) {
+          const updatedUserContext = { ...user, displayName: auth.currentUser.displayName };
+          setUser(updatedUserContext);
+        }
       }
-      toast({ title: "Profile Updated", description: "Your display name has been updated." });
+
+      // Update currency in Firestore
+      if (data.currency && data.currency !== (userPreferences?.currency || DEFAULT_CURRENCY)) {
+        const userDocRef = doc(db, "users", user.uid);
+        await setDoc(userDocRef, { currency: data.currency }, { merge: true });
+        if (setUserPreferences) {
+          setUserPreferences(prev => ({ ...prev!, currency: data.currency! }));
+        }
+      }
+      toast({ title: "Profile Updated", description: "Your profile settings have been updated." });
     } catch (error: any) {
       toast({
         title: "Update Failed",
-        description: error.message || "Could not update display name.",
+        description: error.message || "Could not update profile settings.",
         variant: "destructive",
       });
-      console.error("Error updating display name:", error);
+      console.error("Error updating profile:", error);
     } finally {
-      setIsSubmittingName(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -116,44 +133,34 @@ export default function ProfilePage() {
     }
 
     setIsUploadingImage(true);
-    setUploadProgress(50); // Mock progress as conversion is fast
-
     const reader = new FileReader();
     reader.onloadend = async () => {
       const base64DataUri = reader.result as string;
-      setLocalPhotoPreview(base64DataUri); // Optimistic UI update
+      setLocalPhotoPreview(base64DataUri); 
 
       try {
-        // Save to Firestore
         const userDocRef = doc(db, "users", user.uid);
         await setDoc(userDocRef, { profileImageBase64: base64DataUri }, { merge: true });
 
-        // Attempt to save to Firebase Auth photoURL
         try {
             await updateProfile(auth.currentUser!, { photoURL: base64DataUri });
         } catch (authError: any) {
             console.warn("Firebase Auth photoURL update failed (might be too long):", authError.message);
             toast({
                 title: "Image Stored in DB",
-                description: "Profile picture saved. Display in some areas might rely on browser cache or direct DB read if Auth update failed.",
+                description: "Profile picture saved locally.",
                 variant: "default",
             });
         }
 
         if (setUser && auth.currentUser) {
-          // Create a new user object for the context to ensure re-render
-          const updatedUserContext = { 
-            ...user, 
-            photoURL: auth.currentUser.photoURL, // This will be the (potentially failed) auth version
-            // To truly reflect Firestore, context would need a way to store/fetch profileImageBase64
-          };
            setUser(prevState => ({...prevState!, photoURL: base64DataUri}));
         }
         setLocalPhotoPreview(base64DataUri);
         toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
 
       } catch (error: any) {
-        setLocalPhotoPreview(user.photoURL); // Revert preview on error
+        setLocalPhotoPreview(user.photoURL); 
         toast({
           title: "Image Update Failed",
           description: error.message || "Could not save new profile picture.",
@@ -162,7 +169,6 @@ export default function ProfilePage() {
         console.error("Error updating profile with new image:", error);
       } finally {
         setIsUploadingImage(false);
-        setUploadProgress(null);
       }
     };
     reader.readAsDataURL(file);
@@ -214,25 +220,15 @@ export default function ProfilePage() {
               onChange={handleImageUpload}
               disabled={isUploadingImage}
             />
-             {isUploadingImage && uploadProgress !== null && (
-              <div className="absolute bottom-[-20px] left-0 right-0 px-2">
-                <div className="w-full bg-muted rounded-full h-1.5">
-                  <div
-                    className="bg-primary h-1.5 rounded-full transition-all duration-150"
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
-              </div>
-            )}
           </div>
           <CardTitle className="text-3xl font-headline flex items-center mt-4">
             <UserCircle className="mr-3 h-8 w-8 text-primary" />
             Edit Profile
           </CardTitle>
-          <CardDescription>Update your display name and profile picture. Max image size: ${MAX_FILE_SIZE_BYTES / 1024}KB.</CardDescription>
+          <CardDescription>Update your display name, profile picture, and currency preference. Max image size: ${MAX_FILE_SIZE_BYTES / 1024}KB.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
-          <form onSubmit={handleSubmit(handleNameUpdate)} className="space-y-6">
+          <form onSubmit={handleSubmit(handleProfileUpdate)} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" value={user.email || ""} readOnly disabled className="bg-muted/50"/>
@@ -243,10 +239,35 @@ export default function ProfilePage() {
               <Input id="displayName" {...register("displayName")} placeholder="Your Name" />
               {errors.displayName && <p className="text-sm text-destructive">{errors.displayName.message}</p>}
             </div>
-            <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isSubmittingName}>
-              {isSubmittingName && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Edit3 className="mr-2 h-4 w-4" />
-              Update Display Name
+            
+            <div className="space-y-2">
+              <Label htmlFor="currency">Preferred Currency</Label>
+              <Controller
+                name="currency"
+                control={control}
+                defaultValue={userPreferences?.currency || DEFAULT_CURRENCY}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger id="currency">
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COMMON_CURRENCIES.map(c => (
+                        <SelectItem key={c.code} value={c.code}>
+                          {c.code} - {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.currency && <p className="text-sm text-destructive">{errors.currency.message}</p>}
+            </div>
+
+            <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isSubmitting || isUploadingImage}>
+              {(isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Save className="mr-2 h-4 w-4" />
+              Save Profile Settings
             </Button>
           </form>
         </CardContent>
@@ -254,4 +275,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

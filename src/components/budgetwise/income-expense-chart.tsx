@@ -15,6 +15,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { Transaction } from "@/types";
 import { format, getDaysInMonth, getDate, startOfMonth } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
 
 interface IncomeExpenseChartProps {
   transactions: Transaction[];
@@ -27,16 +29,16 @@ interface DailyData {
 }
 
 export function IncomeExpenseChart({ transactions }: IncomeExpenseChartProps) {
+  const { userPreferences, loading: authLoading } = useAuth();
   const [chartData, setChartData] = React.useState<DailyData[]>([]);
+  const currency = React.useMemo(() => userPreferences?.currency || DEFAULT_CURRENCY, [userPreferences]);
 
   React.useEffect(() => {
     const currentDate = new Date();
     const currentMonth = currentDate.getMonth();
     const currentYear = currentDate.getFullYear();
     
-    const firstDayOfMonth = startOfMonth(currentDate);
     const daysInCurrentMonth = getDaysInMonth(currentDate);
-
     const dailyAggregates: Record<string, { income: number; expenses: number }> = {};
 
     for (let i = 1; i <= daysInCurrentMonth; i++) {
@@ -60,7 +62,7 @@ export function IncomeExpenseChart({ transactions }: IncomeExpenseChartProps) {
 
     const formattedData: DailyData[] = Object.entries(dailyAggregates).map(
       ([day, data]) => ({
-        name: day, // Using day number as name
+        name: day, 
         income: data.income,
         expenses: data.expenses,
       })
@@ -69,6 +71,20 @@ export function IncomeExpenseChart({ transactions }: IncomeExpenseChartProps) {
     setChartData(formattedData);
 
   }, [transactions]);
+
+  const yAxisTickFormatter = (value: number) => {
+    if (authLoading && !userPreferences) return "";
+    return formatCurrency(value, currency).replace(/\.00$/, ''); // Remove cents if zero for cleaner axis
+  };
+
+  const tooltipFormatter = (value: number, name: string) => {
+    if (authLoading && !userPreferences) return [value.toString(), name];
+    return [
+      formatCurrency(value, currency),
+      name.charAt(0).toUpperCase() + name.slice(1)
+    ];
+  };
+  
 
   if (chartData.every(d => d.income === 0 && d.expenses === 0)) {
     return (
@@ -92,7 +108,7 @@ export function IncomeExpenseChart({ transactions }: IncomeExpenseChartProps) {
       </CardHeader>
       <CardContent className="h-[350px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
+          <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))"/>
             <XAxis 
               dataKey="name" 
@@ -103,13 +119,10 @@ export function IncomeExpenseChart({ transactions }: IncomeExpenseChartProps) {
             <YAxis 
               stroke="hsl(var(--muted-foreground))" 
               fontSize={12}
-              tickFormatter={(value) => `$${value}`}
+              tickFormatter={yAxisTickFormatter}
             />
             <Tooltip
-              formatter={(value: number, name: string) => [
-                new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value),
-                name.charAt(0).toUpperCase() + name.slice(1) // Capitalize 'income' or 'expenses'
-              ]}
+              formatter={tooltipFormatter}
               labelFormatter={(label) => `Day ${label}`}
               contentStyle={{ 
                 backgroundColor: 'hsl(var(--background))', 

@@ -1,3 +1,4 @@
+
 // budget-advisor.ts
 'use server';
 
@@ -11,6 +12,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import type { CurrencyCode } from '@/lib/currencyUtils';
+import { DEFAULT_CURRENCY } from '@/lib/currencyUtils';
 
 const BudgetAdvisorInputSchema = z.object({
   income: z.number().describe('Total monthly income.'),
@@ -23,6 +26,7 @@ const BudgetAdvisorInputSchema = z.object({
     )
     .describe('List of expenses with category and amount.'),
   financialGoals: z.string().describe('The users financial goals'),
+  currencyCode: z.custom<CurrencyCode>().optional().default(DEFAULT_CURRENCY).describe('The currency code for the amounts (e.g., USD, EUR).'),
 });
 export type BudgetAdvisorInput = z.infer<typeof BudgetAdvisorInputSchema>;
 
@@ -42,6 +46,7 @@ const prompt = ai.definePrompt({
   input: {schema: BudgetAdvisorInputSchema},
   output: {schema: BudgetAdvisorOutputSchema},
   prompt: `You are a personal finance advisor. Analyze the user's income, expenses, and financial goals to provide personalized budget adjustment suggestions.
+The financial figures are in {{currencyCode}}.
 
 Income: {{income}}
 Expenses:
@@ -51,7 +56,7 @@ Expenses:
 Financial Goals: {{financialGoals}}
 
 Based on this information, provide a list of actionable suggestions to optimize their budget. Focus on areas where they can reduce spending or allocate funds more effectively.
-Suggestions:`, // Ensure suggestions is the final word to guide the model's output
+Suggestions:`,
 });
 
 const budgetAdvisorFlow = ai.defineFlow(
