@@ -37,7 +37,7 @@ SpendSense is a personal finance management web application designed to help use
 1. Clone the repository:
    ```bash
    git clone <repository-url>
-   cd BudgetWise
+   cd SpendSense
    ```
 
 2. Install dependencies:
