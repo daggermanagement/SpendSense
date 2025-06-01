@@ -11,6 +11,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   logout: () => Promise<void>;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>; // Added setUser
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,11 +38,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     await firebaseSignOut(auth);
-    setUser(null);
+    setUser(null); // Explicitly set user to null on logout
     router.push('/login');
   };
 
-  const value = { user, loading, logout };
+  const value = { user, loading, logout, setUser }; // Added setUser to context value
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

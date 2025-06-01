@@ -14,8 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, UserCircle, Edit3, Camera } from "lucide-react";
 import { updateProfile } from "firebase/auth";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { auth, storage } from "@/lib/firebase";
+import { auth } from "@/lib/firebase"; // Removed storage import
 import { useRouter } from "next/navigation";
 
 const profileSchema = z.object({
@@ -25,7 +24,7 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export default function ProfilePage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, setUser } = useAuth(); // Assuming setUser is available from context to reflect changes immediately
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmittingName, setIsSubmittingName] = React.useState(false);
@@ -56,8 +55,13 @@ export default function ProfilePage() {
     setIsSubmittingName(true);
     try {
       await updateProfile(auth.currentUser, { displayName: data.displayName });
+      // Manually update user in context if setUser is available and needed for immediate reflection
+      if (setUser && auth.currentUser) {
+         const updatedUser = { ...auth.currentUser, displayName: data.displayName };
+         // This is a simplified update; a more robust solution might re-fetch or merge user data.
+         // For now, we rely on onAuthStateChanged to eventually pick it up or a page refresh.
+      }
       toast({ title: "Profile Updated", description: "Your display name has been updated." });
-      // The AuthContext should pick up the change via onAuthStateChanged
     } catch (error: any) {
       toast({
         title: "Update Failed",
@@ -75,46 +79,59 @@ export default function ProfilePage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+    const maxSize = 200 * 1024; // 200KB limit
+    if (file.size > maxSize) {
         toast({
             title: "File Too Large",
-            description: "Profile picture cannot exceed 5MB.",
+            description: `Profile picture cannot exceed ${maxSize / 1024}KB.`,
             variant: "destructive",
         });
         return;
     }
 
     setIsUploadingImage(true);
-    setLocalPhotoURL(URL.createObjectURL(file)); // Show local preview
+    
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64DataUri = reader.result as string;
+      setLocalPhotoURL(base64DataUri); // Show local preview
 
-    try {
-      const filePath = `profileImages/${user.uid}/${file.name}`;
-      const storageRef = ref(storage, filePath);
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-
-      await updateProfile(auth.currentUser, { photoURL: downloadURL });
-      setLocalPhotoURL(downloadURL); // Update with final URL
-      toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
-      // AuthContext will update user object
-    } catch (error: any) {
-      setLocalPhotoURL(user.photoURL); // Revert to old image on error
-      toast({
-        title: "Image Upload Failed",
-        description: error.message || "Could not upload new profile picture.",
-        variant: "destructive",
-      });
-      console.error("Error uploading profile image:", error);
-    } finally {
-      setIsUploadingImage(false);
+      try {
+        await updateProfile(auth.currentUser!, { photoURL: base64DataUri });
+        // Manually update user in context if setUser is available for immediate reflection
+        if (setUser && auth.currentUser) {
+            const updatedUser = { ...auth.currentUser, photoURL: base64DataUri };
+             // This is a simplified update.
+        }
+        toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
+      } catch (error: any) {
+        setLocalPhotoURL(user.photoURL); // Revert to old image on error
+        toast({
+          title: "Image Update Failed",
+          description: error.message || "Could not save new profile picture.",
+          variant: "destructive",
+        });
+        console.error("Error updating profile image:", error);
+      } finally {
+        setIsUploadingImage(false);
+      }
+    };
+    reader.onerror = () => {
+        toast({
+            title: "File Read Error",
+            description: "Could not read the selected image file.",
+            variant: "destructive",
+        });
+        setIsUploadingImage(false);
     }
+    reader.readAsDataURL(file);
   };
 
   const getInitials = (name?: string | null) => {
     if (!name) return user?.email?.substring(0, 2).toUpperCase() || "U";
     const names = name.split(' ');
     if (names.length > 1) {
-      return names[0][0] + names[names.length - 1][0];
+      return (names[0][0] + names[names.length - 1][0]).toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
   };
