@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransactionForm } from "@/components/budgetwise/transaction-form";
 import { MonthlyOverview } from "@/components/budgetwise/monthly-overview";
 import { SpendingChart } from "@/components/budgetwise/spending-chart";
-import { AiBudgetAdvisor } from "@/components/budgetwise/ai-budget-advisor";
+// import { AiBudgetAdvisor } from "@/components/budgetwise/ai-budget-advisor";
 import { RecentTransactions } from "@/components/budgetwise/recent-transactions";
 import type { Transaction } from "@/types";
 import { allCategories } from "@/types";
@@ -54,8 +54,8 @@ export default function BudgetWisePage() {
       });
       setTransactions(userTransactions);
       setDataLoading(false);
-    }, (error) => {
-      console.error("Error fetching transactions: ", error);
+    }, (error: any) => {
+      console.error("Error fetching transactions: ", error.message, error.code, error.stack);
       toast({
         title: "Error Fetching Data",
         description: `Could not load transactions: ${error.message}`,
@@ -81,15 +81,15 @@ export default function BudgetWisePage() {
       const transactionsCol = collection(db, "users", user.uid, "transactions");
       await addDoc(transactionsCol, {
         ...newTransaction,
-        date: newTransaction.date 
+        date: newTransaction.date
       });
       toast({
         title: `${newTransaction.type.charAt(0).toUpperCase() + newTransaction.type.slice(1)} Added`,
         description: `Successfully recorded ${newTransaction.category} for $${newTransaction.amount}.`,
       });
-      setActiveDialog(null); 
+      setActiveDialog(null);
     } catch (error: any) {
-      console.error("Error adding transaction to Firestore: ", error);
+      console.error("Error adding transaction to Firestore: ", error.message, error.code, error.stack);
       toast({
         title: "Error Adding Transaction",
         description: `Could not save transaction: ${error.message || 'Unknown error'}`,
@@ -97,15 +97,15 @@ export default function BudgetWisePage() {
       });
     }
   };
-  
+
   const currentMonthExpenses = React.useMemo(() => {
     const currentDate = new Date();
     const currentMonth = currentDate.getMonth();
     const currentYear = currentDate.getFullYear();
     return transactions.filter(t => {
       const transactionDate = new Date(t.date);
-      return t.type === 'expense' && 
-             transactionDate.getMonth() === currentMonth && 
+      return t.type === 'expense' &&
+             transactionDate.getMonth() === currentMonth &&
              transactionDate.getFullYear() === currentYear;
     });
   }, [transactions]);
@@ -118,7 +118,7 @@ export default function BudgetWisePage() {
       </div>
     );
   }
-  
+
   if (!user && !authLoading) {
      return (
       <div className="flex flex-col flex-1 items-center justify-center p-4">
@@ -176,11 +176,11 @@ export default function BudgetWisePage() {
               </Dialog>
             </CardContent>
           </Card>
-          <AiBudgetAdvisor transactions={transactions} />
+          {/* <AiBudgetAdvisor transactions={transactions} /> */}
         </div>
       </div>
       <RecentTransactions transactions={transactions} />
-      
+
       <footer className="py-6 border-t mt-12 bg-background/5">
         <div className="container flex flex-col items-center justify-center gap-1">
           <p className="text-center text-sm leading-loose text-muted-foreground">
