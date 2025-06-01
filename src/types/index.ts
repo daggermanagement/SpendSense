@@ -1,10 +1,20 @@
+
+import type { Timestamp } from "firebase/firestore";
+
 export interface Transaction {
-  id: string;
+  id: string; // Firestore document ID
+  userId?: string; // To associate with a user, though path implies it
   type: 'income' | 'expense';
   category: string;
-  date: string; // ISO string date
+  date: string; // ISO string date for consistency, can be Timestamp from Firestore
   amount: number;
   notes?: string;
+}
+
+// Firestore specific type if you decide to work with Timestamps directly often
+export interface FirestoreTransaction extends Omit<Transaction, 'id' | 'date'> {
+  id?: string; // Optional as Firestore generates it
+  date: Timestamp; 
 }
 
 export const incomeCategories = ['Salary', 'Bonus', 'Gifts', 'Investments', 'Freelance', 'Other Income'] as const;
