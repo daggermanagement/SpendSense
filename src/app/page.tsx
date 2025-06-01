@@ -28,7 +28,7 @@ import { collection, addDoc, doc, updateDoc, deleteDoc, query, orderBy, onSnapsh
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
-import { SiteFooter } from "@/components/layout/SiteFooter";
+// Removed SiteFooter import, it's in RootLayout
 
 
 export default function BudgetWisePage() {
