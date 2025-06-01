@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Leaf, LogIn, LogOut, UserPlus } from "lucide-react";
+import { Leaf, LogIn, LogOut, UserPlus, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -19,7 +19,14 @@ import {
 export function Header() {
   const { user, loading, logout } = useAuth();
 
-  const getInitials = (email?: string | null) => {
+  const getInitials = (email?: string | null, displayName?: string | null) => {
+    if (displayName) {
+      const names = displayName.split(' ');
+      if (names.length > 1) {
+        return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+      }
+      return displayName.substring(0, 2).toUpperCase();
+    }
     if (!email) return "U";
     return email.substring(0, 2).toUpperCase();
   };
@@ -41,7 +48,7 @@ export function Header() {
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || "User"} />
-                    <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
+                    <AvatarFallback>{getInitials(user.email, user.displayName)}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -57,6 +64,12 @@ export function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile">
+                    <UserCircle className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={logout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
