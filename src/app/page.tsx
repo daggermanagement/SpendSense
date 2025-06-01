@@ -2,9 +2,9 @@
 "use client";
 
 import * as React from "react";
-import { Leaf, PlusCircle, Loader2 } from "lucide-react";
+import { PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription as ShadcnCardDescription } from "@/components/ui/card"; // Renamed to avoid conflict
+import { Card, CardContent, CardHeader, CardTitle, CardDescription as ShadcnCardDescription } from "@/components/ui/card";
 import { TransactionForm } from "@/components/budgetwise/transaction-form";
 import { MonthlyOverview } from "@/components/budgetwise/monthly-overview";
 import { SpendingChart } from "@/components/budgetwise/spending-chart";
@@ -30,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
 
 
-export default function BudgetWisePage() {
+export default function SpendSensePage() { // Renamed component
   const { user, userPreferences, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -84,7 +84,7 @@ export default function BudgetWisePage() {
     }
 
     try {
-      if (existingId) { // Editing existing transaction
+      if (existingId) { 
         const transactionDocRef = doc(db, "users", user.uid, "transactions", existingId);
         await updateDoc(transactionDocRef, {
             ...transactionData,
@@ -94,7 +94,7 @@ export default function BudgetWisePage() {
           title: "Transaction Updated",
           description: `Successfully updated ${transactionData.category} for ${formatCurrency(transactionData.amount, currency)}.`,
         });
-      } else { // Adding new transaction
+      } else { 
         const transactionsCol = collection(db, "users", user.uid, "transactions");
         await addDoc(transactionsCol, {
           ...transactionData,
@@ -146,7 +146,7 @@ export default function BudgetWisePage() {
     return (
       <div className="flex flex-col flex-1 items-center justify-center p-4">
         <Loader2 className="h-12 w-12 text-primary animate-spin" />
-        <p className="text-muted-foreground mt-4">Loading BudgetWise data...</p>
+        <p className="text-muted-foreground mt-4">Loading SpendSense data...</p> {/* Changed BudgetWise to SpendSense */}
       </div>
     );
   }
@@ -163,13 +163,12 @@ export default function BudgetWisePage() {
     <div className="container py-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Row 1: Overviews and Actions */}
-        <div className="lg:col-span-2 space-y-8"> {/* Takes 2/3 width */}
+        <div className="lg:col-span-2 space-y-8">
           <MonthlyOverview transactions={transactions} />
           <YtdOverview transactions={transactions} />
         </div>
 
-        <div className="lg:col-span-1 space-y-8"> {/* Takes 1/3 width */}
+        <div className="lg:col-span-1 space-y-8">
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="font-headline text-xl">Record Transactions</CardTitle>
@@ -227,7 +226,6 @@ export default function BudgetWisePage() {
           <AiBudgetAdvisor transactions={transactions} />
         </div>
 
-        {/* Row 2: Charts (Full Width, internally split) */}
         <div className="lg:col-span-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <SpendingChart transactions={transactions} />
@@ -235,7 +233,6 @@ export default function BudgetWisePage() {
           </div>
         </div>
         
-        {/* Row 3: Recent Transactions (Full Width) */}
         <div className="lg:col-span-3">
           <RecentTransactions
             transactions={transactions}
@@ -244,8 +241,7 @@ export default function BudgetWisePage() {
           />
         </div>
 
-      </div> {/* End of main grid */}
+      </div>
     </div>
   );
 }
-

@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth"; // Added updateProfile
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Leaf, Loader2, User } from "lucide-react"; // Added User icon
+import { Gauge, Loader2, User } from "lucide-react"; // Changed Leaf to Gauge
 
 const registerSchema = z.object({
   displayName: z.string().min(2, { message: "Name must be at least 2 characters."}).max(50, {message: "Name cannot exceed 50 characters."}),
@@ -30,7 +30,7 @@ const registerSchema = z.object({
   confirmPassword: z.string(),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords do not match.",
-  path: ["confirmPassword"], // Apply error to confirmPassword field
+  path: ["confirmPassword"],
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -52,7 +52,6 @@ export default function RegisterPage() {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      // Set display name
       if (userCredential.user) {
         await updateProfile(userCredential.user, {
           displayName: data.displayName,
@@ -86,12 +85,12 @@ export default function RegisterPage() {
     <div className="flex flex-1 flex-col items-center justify-center bg-gradient-to-br from-background to-muted/30 selection:bg-primary/20 selection:text-primary py-6 sm:py-8">
       <div className="w-full max-w-md px-4">
          <div className="flex justify-center mb-6">
-          <Leaf className="h-16 w-16 text-primary drop-shadow-lg" />
+          <Gauge className="h-16 w-16 text-primary drop-shadow-lg" /> {/* Changed Leaf to Gauge */}
         </div>
         <Card className="shadow-2xl rounded-xl">
           <CardHeader className="text-center space-y-2 pt-8">
             <CardTitle className="text-3xl font-headline tracking-tight">Create Your Account</CardTitle>
-            <CardDescription className="text-md">Join BudgetWise and take control of your finances.</CardDescription>
+            <CardDescription className="text-md">Join SpendSense and take control of your finances.</CardDescription> {/* Changed BudgetWise to SpendSense */}
           </CardHeader>
           <CardContent className="py-6 px-8">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">

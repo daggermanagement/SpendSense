@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Leaf, LogIn, LogOut, UserPlus, UserCircle } from "lucide-react";
+import { Gauge, LogOut, UserCircle } from "lucide-react"; // Changed Leaf to Gauge
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ThemeSwitcher } from "./ThemeSwitcher"; // Import ThemeSwitcher
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
 export function Header() {
   const { user, userPreferences, loading, logout } = useAuth();
@@ -38,13 +38,13 @@ export function Header() {
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <Link href="/" className="flex items-center">
-          <Leaf className="h-8 w-8 text-primary mr-3" />
-          <h1 className="text-3xl font-headline font-bold">BudgetWise</h1>
+          <Gauge className="h-8 w-8 text-primary mr-3" /> {/* Changed Leaf to Gauge */}
+          <h1 className="text-3xl font-headline font-bold">SpendSense</h1> {/* Changed BudgetWise to SpendSense */}
         </Link>
         
-        <div className="flex items-center gap-2"> {/* Wrapper for nav and theme switcher */}
-          <ThemeSwitcher /> {/* Add ThemeSwitcher here */}
-          <nav className="flex items-center gap-2"> {/* Reduced gap-4 to gap-2 if ThemeSwitcher adds its own gap */}
+        <div className="flex items-center gap-2">
+          <ThemeSwitcher />
+          <nav className="flex items-center gap-2">
             {loading ? (
               <div className="h-8 w-20 animate-pulse rounded-md bg-muted"></div>
             ) : user ? (
@@ -82,7 +82,6 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              // Login and Register buttons removed from here
               null
             )}
           </nav>

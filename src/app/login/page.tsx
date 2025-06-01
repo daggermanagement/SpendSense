@@ -21,11 +21,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Leaf, Loader2 } from "lucide-react";
+import { Gauge, Loader2 } from "lucide-react"; // Changed Leaf to Gauge
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(1, { message: "Password is required." }), // Min 1, Firebase handles length
+  password: z.string().min(1, { message: "Password is required." }),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -47,7 +47,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
-      toast({ title: "Login Successful", description: "Welcome back to BudgetWise!" });
+      toast({ title: "Login Successful", description: "Welcome back to SpendSense!" }); // Changed BudgetWise to SpendSense
       router.push("/");
     } catch (error: any) {
       let errorMessage = "An unexpected error occurred. Please try again.";
@@ -72,12 +72,12 @@ export default function LoginPage() {
     <div className="flex flex-1 flex-col items-center justify-center bg-gradient-to-br from-background to-muted/30 selection:bg-primary/20 selection:text-primary py-6 sm:py-8">
       <div className="w-full max-w-md px-4">
         <div className="flex justify-center mb-6">
-          <Leaf className="h-16 w-16 text-primary drop-shadow-lg" />
+          <Gauge className="h-16 w-16 text-primary drop-shadow-lg" /> {/* Changed Leaf to Gauge */}
         </div>
         <Card className="shadow-2xl rounded-xl">
           <CardHeader className="text-center space-y-2 pt-8">
             <CardTitle className="text-3xl font-headline tracking-tight">Welcome Back!</CardTitle>
-            <CardDescription className="text-md">Log in to manage your finances with BudgetWise.</CardDescription>
+            <CardDescription className="text-md">Log in to manage your finances with SpendSense.</CardDescription> {/* Changed BudgetWise to SpendSense */}
           </CardHeader>
           <CardContent className="py-6 px-8">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -96,10 +96,6 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  {/* <Link href="/forgot-password" // Future feature placeholder
-                        className="text-sm font-medium text-primary hover:underline">
-                    Forgot password?
-                  </Link> */}
                 </div>
                 <Input 
                   id="password" 
