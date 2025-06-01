@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransactionForm } from "@/components/budgetwise/transaction-form";
 import { MonthlyOverview } from "@/components/budgetwise/monthly-overview";
 import { SpendingChart } from "@/components/budgetwise/spending-chart";
-// import { AiBudgetAdvisor } from "@/components/budgetwise/ai-budget-advisor";
+import { AiBudgetAdvisor } from "@/components/budgetwise/ai-budget-advisor";
 import { RecentTransactions } from "@/components/budgetwise/recent-transactions";
 import type { Transaction } from "@/types";
 import { allCategories } from "@/types";
@@ -176,7 +176,7 @@ export default function BudgetWisePage() {
               </Dialog>
             </CardContent>
           </Card>
-          {/* <AiBudgetAdvisor transactions={transactions} /> */}
+          <AiBudgetAdvisor transactions={transactions} />
         </div>
       </div>
       <RecentTransactions transactions={transactions} />
@@ -194,3 +194,4 @@ export default function BudgetWisePage() {
     </div>
   );
 }
+
