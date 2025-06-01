@@ -2,29 +2,38 @@
 "use client";
 
 import * as React from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, UserCircle, Camera, Save } from "lucide-react";
+import { Loader2, UserCircle, Camera, Save, Trash2, DollarSign } from "lucide-react";
 import { updateProfile } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { COMMON_CURRENCIES, DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/currencyUtils";
+import { COMMON_CURRENCIES, DEFAULT_CURRENCY, type CurrencyCode, formatCurrency } from "@/lib/currencyUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { allCategories, type ExpenseCategory } from "@/types";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
+import { Separator } from "@/components/ui/separator";
+
+const budgetEntrySchema = z.object({
+  category: z.custom<ExpenseCategory>(),
+  amount: z.coerce.number().nonnegative({ message: "Budget amount must be non-negative."}).optional(),
+});
 
 const profileSchema = z.object({
   displayName: z.string().min(2, { message: "Display name must be at least 2 characters." }).max(50, { message: "Display name cannot exceed 50 characters." }),
   currency: z.custom<CurrencyCode>(val => COMMON_CURRENCIES.some(c => c.code === val), {
     message: "Invalid currency selected.",
   }).optional(),
+  budgets: z.array(budgetEntrySchema).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -39,20 +48,22 @@ export default function ProfilePage() {
   const [isUploadingImage, setIsUploadingImage] = React.useState(false);
   const [localPhotoPreview, setLocalPhotoPreview] = React.useState<string | null | undefined>(null);
   
-  const {
-    register,
-    handleSubmit,
-    setValue: setFormValue,
-    control,
-    formState: { errors },
-  } = useForm<ProfileFormValues>({
+  const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       displayName: "",
-      currency: userPreferences?.currency || DEFAULT_CURRENCY,
+      currency: DEFAULT_CURRENCY,
+      budgets: allCategories.expense.map(cat => ({ category: cat as ExpenseCategory, amount: undefined })),
     }
   });
+  const { register, handleSubmit, setValue: setFormValue, control, watch, formState: { errors } } = form;
 
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "budgets",
+  });
+
+  // Initialize form with user data
   React.useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
@@ -62,14 +73,23 @@ export default function ProfilePage() {
       setFormValue("displayName", user.displayName || "");
     }
     if (userPreferences) {
-        setFormValue("currency", userPreferences.currency || DEFAULT_CURRENCY);
-        // Prioritize Firestore image for preview, then Auth photoURL
-        setLocalPhotoPreview(userPreferences.profileImageBase64 || user?.photoURL || null);
+      setFormValue("currency", userPreferences.currency || DEFAULT_CURRENCY);
+      setLocalPhotoPreview(userPreferences.profileImageBase64 || user?.photoURL || null);
+      
+      // Populate budgets array from userPreferences.budgets map
+      const existingBudgetsArray = allCategories.expense.map(cat => ({
+        category: cat as ExpenseCategory,
+        amount: userPreferences.budgets?.[cat] || undefined,
+      }));
+      setFormValue("budgets", existingBudgetsArray);
+
     } else if (user) {
-        setLocalPhotoPreview(user.photoURL || null);
+      setLocalPhotoPreview(user.photoURL || null);
+      setFormValue("budgets", allCategories.expense.map(cat => ({ category: cat as ExpenseCategory, amount: undefined })));
     }
 
   }, [user, authLoading, setFormValue, router, userPreferences]);
+
 
   const handleProfileUpdate = async (data: ProfileFormValues) => {
     if (!user || !auth.currentUser) return;
@@ -83,13 +103,30 @@ export default function ProfilePage() {
         }
       }
 
+      const userDocRef = doc(db, "users", user.uid);
+      const updates: Partial<UserPreferences> = {};
+
       if (data.currency && data.currency !== (userPreferences?.currency || DEFAULT_CURRENCY)) {
-        const userDocRef = doc(db, "users", user.uid);
-        await setDoc(userDocRef, { currency: data.currency }, { merge: true });
-        if (setUserPreferences) {
-          setUserPreferences(prev => ({ ...prev!, currency: data.currency! }));
-        }
+        updates.currency = data.currency;
       }
+
+      if (data.budgets) {
+        const newBudgetsMap: { [category: string]: number } = {};
+        data.budgets.forEach(budgetEntry => {
+          if (budgetEntry.category && budgetEntry.amount !== undefined && budgetEntry.amount > 0) {
+            newBudgetsMap[budgetEntry.category] = budgetEntry.amount;
+          }
+        });
+        updates.budgets = newBudgetsMap;
+      }
+      
+      if (Object.keys(updates).length > 0) {
+         await setDoc(userDocRef, updates, { merge: true });
+         if (setUserPreferences) {
+           setUserPreferences(prev => ({ ...prev!, ...updates }));
+         }
+      }
+
       toast({ title: "Profile Updated", description: "Your profile settings have been updated." });
     } catch (error: any) {
       toast({
@@ -131,24 +168,18 @@ export default function ProfilePage() {
             setUserPreferences(prev => ({ ...prev!, profileImageBase64: base64DataUri }));
         }
         
-        try {
+        try { // Attempt to update Auth photoURL, might fail if string is too long
             await updateProfile(auth.currentUser!, { photoURL: base64DataUri });
              if (setUser && auth.currentUser) {
                setUser(prevState => ({...prevState!, photoURL: base64DataUri}));
             }
         } catch (authError: any) {
             console.warn("Firebase Auth photoURL update failed (might be too long):", authError.message);
-            toast({
-                title: "Image Stored in DB",
-                description: "Profile picture saved to database. Auth photoURL update might have limits.",
-                variant: "default",
-            });
         }
         
         toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
 
       } catch (error: any) {
-        // Revert preview if Firestore save fails
         setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null); 
         toast({
           title: "Image Update Failed",
@@ -179,6 +210,8 @@ export default function ProfilePage() {
       </div>
     );
   }
+  
+  const currentCurrency = watch("currency") || DEFAULT_CURRENCY;
 
   return (
     <div className="container py-12">
@@ -214,51 +247,101 @@ export default function ProfilePage() {
             <UserCircle className="mr-3 h-8 w-8 text-primary" />
             Edit Profile
           </CardTitle>
-          <CardDescription>Update your display name, profile picture (max {MAX_FILE_SIZE_BYTES/1024}KB), and currency preference.</CardDescription>
+          <CardDescription>Update your display name, profile picture (max {MAX_FILE_SIZE_BYTES/1024}KB), currency, and monthly budgets.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
-          <form onSubmit={handleSubmit(handleProfileUpdate)} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={user.email || ""} readOnly disabled className="bg-muted/50"/>
-              <p className="text-xs text-muted-foreground">Email address cannot be changed.</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="displayName">Display Name</Label>
-              <Input id="displayName" {...register("displayName")} placeholder="Your Name" />
-              {errors.displayName && <p className="text-sm text-destructive">{errors.displayName.message}</p>}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="currency">Preferred Currency</Label>
-              <Controller
-                name="currency"
+          <Form {...form}>
+            <form onSubmit={handleSubmit(handleProfileUpdate)} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" value={user.email || ""} readOnly disabled className="bg-muted/50"/>
+                <p className="text-xs text-muted-foreground">Email address cannot be changed.</p>
+              </div>
+              
+              <FormField
                 control={control}
-                defaultValue={userPreferences?.currency || DEFAULT_CURRENCY}
+                name="displayName"
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger id="currency">
-                      <SelectValue placeholder="Select currency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COMMON_CURRENCIES.map(c => (
-                        <SelectItem key={c.code} value={c.code}>
-                          {c.code} - {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormItem>
+                    <FormLabel>Display Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Your Name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
               />
-              {errors.currency && <p className="text-sm text-destructive">{errors.currency.message}</p>}
-            </div>
+              
+              <FormField
+                control={control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Preferred Currency</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger id="currency">
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {COMMON_CURRENCIES.map(c => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.code} - {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isSubmitting || isUploadingImage}>
-              {(isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Save className="mr-2 h-4 w-4" />
-              Save Profile Settings
-            </Button>
-          </form>
+              <Separator className="my-6" />
+
+              <div className="space-y-4">
+                <h3 className="text-xl font-headline flex items-center">
+                  <DollarSign className="mr-2 h-5 w-5 text-primary" />
+                  Monthly Budgets (Expenses)
+                </h3>
+                <CardDescription>Set your target spending for each expense category. Leave blank or 0 if no budget.</CardDescription>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                  {fields.map((item, index) => (
+                     <FormField
+                        key={item.id}
+                        control={control}
+                        name={`budgets.${index}.amount`}
+                        render={({ field: { onChange, value, ...restField } }) => (
+                          <FormItem>
+                            <FormLabel>{watch(`budgets.${index}.category`)} ({currentCurrency})</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                placeholder="0.00"
+                                step="0.01"
+                                {...restField}
+                                value={value === undefined ? '' : String(value)}
+                                onChange={(e) => {
+                                    const numVal = parseFloat(e.target.value);
+                                    onChange(isNaN(numVal) ? undefined : numVal);
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                  ))}
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 mt-8" disabled={isSubmitting || isUploadingImage}>
+                {(isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Save className="mr-2 h-4 w-4" />
+                Save Profile Settings
+              </Button>
+            </form>
+          </Form>
         </CardContent>
       </Card>
     </div>

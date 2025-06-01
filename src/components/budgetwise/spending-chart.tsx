@@ -4,10 +4,9 @@
 import * as React from "react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { Transaction } from "@/types";
+import type { Transaction, UserBudget } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
-
 
 const COLORS = [
   'hsl(var(--chart-1))', 
@@ -24,8 +23,10 @@ interface SpendingChartProps {
 
 export function SpendingChart({ transactions }: SpendingChartProps) {
   const { userPreferences, loading: authLoading } = useAuth();
-  const [chartData, setChartData] = React.useState<Array<{ name: string; value: number }>>([]);
+  const [chartData, setChartData] = React.useState<Array<{ name: string; value: number; budget?: number }>>([]);
+  
   const currency = React.useMemo(() => userPreferences?.currency || DEFAULT_CURRENCY, [userPreferences]);
+  const budgets = React.useMemo(() => userPreferences?.budgets || {}, [userPreferences]);
 
   React.useEffect(() => {
     const currentDate = new Date();
@@ -45,16 +46,39 @@ export function SpendingChart({ transactions }: SpendingChartProps) {
     }, {} as Record<string, number>);
 
     const formattedData = Object.entries(aggregatedExpenses)
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, value]) => ({ 
+        name, 
+        value,
+        budget: budgets[name] // Add budget information
+      }))
       .sort((a, b) => b.value - a.value); 
 
     setChartData(formattedData);
-  }, [transactions]);
+  }, [transactions, budgets]);
 
-  const tooltipFormatter = (value: number) => {
-    if (authLoading && !userPreferences) return value.toString();
-    return formatCurrency(value, currency);
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload; // Access the full data object
+      const spent = payload[0].value;
+      
+      if (authLoading && !userPreferences) return null;
+
+      return (
+        <div className="p-2 bg-background border border-border rounded-md shadow-lg text-sm">
+          <p className="font-semibold">{`${data.name}`}</p>
+          <p className="text-foreground">{`Spent: ${formatCurrency(spent, currency)}`}</p>
+          {data.budget !== undefined && (
+            <p className="text-muted-foreground">{`Budget: ${formatCurrency(data.budget, currency)}`}</p>
+          )}
+          {data.budget !== undefined && spent > data.budget && (
+             <p className="text-destructive font-medium">Over budget!</p>
+          )}
+        </div>
+      );
+    }
+    return null;
   };
+
 
   if (chartData.length === 0) {
     return (
@@ -94,10 +118,7 @@ export function SpendingChart({ transactions }: SpendingChartProps) {
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip
-              formatter={tooltipFormatter}
-              contentStyle={{ backgroundColor: 'hsl(var(--background))', borderRadius: 'var(--radius)', border: '1px solid hsl(var(--border))' }}
-            />
+            <Tooltip content={<CustomTooltip />} />
             <Legend iconType="circle" />
           </PieChart>
         </ResponsiveContainer>

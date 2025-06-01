@@ -9,11 +9,12 @@ import { useRouter, usePathname } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import type { CurrencyCode } from '@/lib/currencyUtils';
 import { DEFAULT_CURRENCY } from '@/lib/currencyUtils';
+import type { UserBudget } from '@/types';
 
 export interface UserPreferences {
   currency: CurrencyCode;
-  profileImageBase64?: string | null; // Added for Firestore-based profile image
-  // Add other preferences here in the future
+  profileImageBase64?: string | null;
+  budgets?: UserBudget; // Expense category budgets
 }
 
 interface AuthContextType {
@@ -45,19 +46,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const data = docSnap.data();
             setUserPreferences({
               currency: (data.currency as CurrencyCode) || DEFAULT_CURRENCY,
-              profileImageBase64: data.profileImageBase64 || null, // Load profile image from Firestore
+              profileImageBase64: data.profileImageBase64 || null,
+              budgets: (data.budgets as UserBudget) || {},
             });
           } else {
             setUserPreferences({ 
               currency: DEFAULT_CURRENCY,
               profileImageBase64: null,
+              budgets: {},
             });
           }
         } catch (error) {
           console.error("Error fetching user preferences:", error);
           setUserPreferences({ 
             currency: DEFAULT_CURRENCY,
-            profileImageBase64: null, // Fallback
+            profileImageBase64: null,
+            budgets: {},
           });
         }
       } else {

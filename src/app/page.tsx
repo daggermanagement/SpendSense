@@ -11,6 +11,7 @@ import { SpendingChart } from "@/components/budgetwise/spending-chart";
 import { AiBudgetAdvisor } from "@/components/budgetwise/ai-budget-advisor";
 import { RecentTransactions } from "@/components/budgetwise/recent-transactions";
 import { IncomeExpenseChart } from "@/components/budgetwise/income-expense-chart";
+import { YtdOverview } from "@/components/budgetwise/ytd-overview"; // New Import
 import type { Transaction } from "@/types";
 import { allCategories } from "@/types";
 import {
@@ -223,6 +224,7 @@ export default function BudgetWisePage() {
           <AiBudgetAdvisor transactions={transactions} />
         </div>
       </div>
+      <YtdOverview transactions={transactions} />
       <RecentTransactions
         transactions={transactions}
         onUpdateTransaction={handleSaveTransaction}

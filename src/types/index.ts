@@ -27,3 +27,7 @@ export const allCategories = {
   income: [...incomeCategories],
   expense: [...expenseCategories],
 };
+
+export interface UserBudget {
+  [category: string]: number; // e.g., { "Food & Drinks": 300, "Shopping": 150 }
+}
