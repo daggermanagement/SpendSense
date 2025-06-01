@@ -82,18 +82,8 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <>
-                <Button variant="ghost" asChild>
-                  <Link href="/login">
-                    <LogIn className="mr-2 h-4 w-4" /> Login
-                  </Link>
-                </Button>
-                <Button asChild>
-                  <Link href="/register">
-                    <UserPlus className="mr-2 h-4 w-4" /> Register
-                  </Link>
-                </Button>
-              </>
+              // Login and Register buttons removed from here
+              null
             )}
           </nav>
         </div>
