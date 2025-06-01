@@ -25,7 +25,7 @@ SpendSense is a personal finance management web application designed to help use
 ## Project Structure
 
 - `src/app/` - Main application pages and layouts
-- `src/components/` - Reusable UI components, including budgetwise-specific components and layout components
+- `src/components/` - Reusable UI components, including specific components and layout components
 - `src/contexts/` - React context providers, including authentication context
 - `src/hooks/` - Custom React hooks for toast notifications and other utilities
 - `src/lib/` - Utility functions and Firebase configuration
