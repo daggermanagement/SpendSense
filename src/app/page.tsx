@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, query, orderBy, onSnapshot, Timestamp, where } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, deleteDoc, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
@@ -71,32 +71,70 @@ export default function BudgetWisePage() {
     return () => unsubscribe();
   }, [user, authLoading, router, toast]);
 
-  const handleAddTransaction = async (newTransaction: Omit<Transaction, "id">) => {
+  const handleSaveTransaction = async (transactionData: Omit<Transaction, "id">, existingId?: string) => {
     if (!user) {
        toast({
         title: "Not Authenticated",
-        description: "You must be logged in to add a transaction.",
+        description: "You must be logged in to manage transactions.",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      const transactionsCol = collection(db, "users", user.uid, "transactions");
-      await addDoc(transactionsCol, {
-        ...newTransaction,
-        date: newTransaction.date 
-      });
-      toast({
-        title: `${newTransaction.type.charAt(0).toUpperCase() + newTransaction.type.slice(1)} Added`,
-        description: `Successfully recorded ${newTransaction.category} for ${formatCurrency(newTransaction.amount, currency)}.`,
-      });
-      setActiveDialog(null);
+      if (existingId) { // Editing existing transaction
+        const transactionDocRef = doc(db, "users", user.uid, "transactions", existingId);
+        await updateDoc(transactionDocRef, {
+            ...transactionData,
+            date: transactionData.date // Ensure date is in correct format
+        });
+        toast({
+          title: "Transaction Updated",
+          description: `Successfully updated ${transactionData.category} for ${formatCurrency(transactionData.amount, currency)}.`,
+        });
+      } else { // Adding new transaction
+        const transactionsCol = collection(db, "users", user.uid, "transactions");
+        await addDoc(transactionsCol, {
+          ...transactionData,
+          date: transactionData.date 
+        });
+        toast({
+          title: `${transactionData.type.charAt(0).toUpperCase() + transactionData.type.slice(1)} Added`,
+          description: `Successfully recorded ${transactionData.category} for ${formatCurrency(transactionData.amount, currency)}.`,
+        });
+        setActiveDialog(null); // Close add dialog
+      }
     } catch (error: any) {
-      console.error("Error adding transaction to Firestore: ", error.message, error.code, error.stack);
+      console.error("Error saving transaction to Firestore: ", error.message, error.code, error.stack);
       toast({
-        title: "Error Adding Transaction",
+        title: `Error ${existingId ? 'Updating' : 'Adding'} Transaction`,
         description: `Could not save transaction: ${error.message || 'Unknown error'}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteTransaction = async (transactionId: string) => {
+    if (!user) {
+      toast({
+        title: "Not Authenticated",
+        description: "You must be logged in to delete transactions.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      const transactionDocRef = doc(db, "users", user.uid, "transactions", transactionId);
+      await deleteDoc(transactionDocRef);
+      toast({
+        title: "Transaction Deleted",
+        description: "Successfully removed the transaction.",
+      });
+    } catch (error: any) {
+      console.error("Error deleting transaction: ", error.message, error.code, error.stack);
+      toast({
+        title: "Error Deleting Transaction",
+        description: `Could not delete transaction: ${error.message || 'Unknown error'}`,
         variant: "destructive",
       });
     }
@@ -133,7 +171,9 @@ export default function BudgetWisePage() {
               <CardTitle className="font-headline text-xl">Record Transactions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Dialog open={activeDialog === 'income'} onOpenChange={(isOpen) => !isOpen && setActiveDialog(null)}>
+              <Dialog open={activeDialog === 'income'} onOpenChange={(isOpen) => {
+                if (!isOpen) setActiveDialog(null);
+              }}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="w-full justify-start" onClick={() => setActiveDialog('income')}>
                     <PlusCircle className="mr-2 h-5 w-5 text-green-500" /> Add Income
@@ -146,11 +186,18 @@ export default function BudgetWisePage() {
                       Add a new income source to your records.
                     </DialogDescription>
                   </DialogHeader>
-                  <TransactionForm type="income" categories={allCategories.income} onAddTransaction={handleAddTransaction} />
+                  <TransactionForm
+                    type="income"
+                    categories={allCategories.income}
+                    onFormSubmit={handleSaveTransaction}
+                    onDialogClose={() => setActiveDialog(null)}
+                  />
                 </DialogContent>
               </Dialog>
 
-              <Dialog open={activeDialog === 'expense'} onOpenChange={(isOpen) => !isOpen && setActiveDialog(null)}>
+              <Dialog open={activeDialog === 'expense'} onOpenChange={(isOpen) => {
+                if (!isOpen) setActiveDialog(null);
+              }}>
                 <DialogTrigger asChild>
                     <Button variant="outline" className="w-full justify-start" onClick={() => setActiveDialog('expense')}>
                     <PlusCircle className="mr-2 h-5 w-5 text-red-500" /> Add Expense
@@ -163,7 +210,12 @@ export default function BudgetWisePage() {
                       Log a new expense. Be as detailed as possible.
                     </DialogDescription>
                   </DialogHeader>
-                    <TransactionForm type="expense" categories={allCategories.expense} onAddTransaction={handleAddTransaction} />
+                    <TransactionForm
+                      type="expense"
+                      categories={allCategories.expense}
+                      onFormSubmit={handleSaveTransaction}
+                      onDialogClose={() => setActiveDialog(null)}
+                    />
                 </DialogContent>
               </Dialog>
             </CardContent>
@@ -171,7 +223,11 @@ export default function BudgetWisePage() {
           <AiBudgetAdvisor transactions={transactions} />
         </div>
       </div>
-      <RecentTransactions transactions={transactions} />
+      <RecentTransactions
+        transactions={transactions}
+        onUpdateTransaction={handleSaveTransaction}
+        onDeleteTransaction={handleDeleteTransaction}
+      />
 
       <footer className="py-6 border-t mt-12 bg-background/5">
         <div className="container flex flex-col items-center justify-center gap-1">

@@ -5,8 +5,8 @@ import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { format } from "date-fns";
-import { CalendarIcon, PlusCircle } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { CalendarIcon, PlusCircle, Edit3 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -34,14 +34,15 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import type { Transaction } from "@/types";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
+import { DEFAULT_CURRENCY } from "@/lib/currencyUtils";
 
 interface TransactionFormProps {
   type: "income" | "expense";
   categories: readonly string[];
-  onAddTransaction: (transaction: Omit<Transaction, "id">) => void;
+  onFormSubmit: (data: Omit<Transaction, "id">, existingId?: string) => void;
+  existingTransaction?: Transaction | null; // For editing
+  onDialogClose?: () => void; // To close dialog after submission
 }
 
 const formSchema = z.object({
@@ -51,33 +52,60 @@ const formSchema = z.object({
   notes: z.string().optional(),
 });
 
-export function TransactionForm({ type, categories, onAddTransaction }: TransactionFormProps) {
-  const { toast } = useToast();
+export function TransactionForm({
+  type,
+  categories,
+  onFormSubmit,
+  existingTransaction,
+  onDialogClose,
+}: TransactionFormProps) {
   const { userPreferences } = useAuth();
   const currency = React.useMemo(() => userPreferences?.currency || DEFAULT_CURRENCY, [userPreferences]);
+  const formMode = existingTransaction ? 'edit' : 'add';
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      amount: 0,
-      category: "",
-      date: new Date(),
-      notes: "",
+      amount: existingTransaction?.amount || 0,
+      category: existingTransaction?.category || "",
+      date: existingTransaction?.date ? parseISO(existingTransaction.date) : new Date(),
+      notes: existingTransaction?.notes || "",
     },
   });
 
+  React.useEffect(() => {
+    if (existingTransaction) {
+      form.reset({
+        amount: existingTransaction.amount,
+        category: existingTransaction.category,
+        date: parseISO(existingTransaction.date),
+        notes: existingTransaction.notes || "",
+      });
+    } else {
+      form.reset({
+        amount: 0,
+        category: "",
+        date: new Date(),
+        notes: "",
+      });
+    }
+  }, [existingTransaction, form, type]); // Added type to dependencies
+
   function onSubmit(values: z.infer<typeof formSchema>) {
-    const newTransaction: Omit<Transaction, "id"> = {
-      type,
+    const transactionData: Omit<Transaction, "id"> = {
+      type: existingTransaction?.type || type, // Use existing type if editing, otherwise prop type
       amount: values.amount,
       category: values.category,
       date: values.date.toISOString(),
       notes: values.notes,
     };
-    onAddTransaction(newTransaction);
-    // Toast is now handled by the parent page (src/app/page.tsx)
-    // to ensure it uses the latest userPreferences for currency formatting immediately after context update.
-    form.reset({ amount: 0, category: "", date: new Date(), notes: "" });
+    onFormSubmit(transactionData, existingTransaction?.id);
+    if (formMode === 'add') {
+        form.reset({ amount: 0, category: "", date: new Date(), notes: "" });
+    }
+    if (onDialogClose) {
+      onDialogClose();
+    }
   }
 
   return (
@@ -102,10 +130,14 @@ export function TransactionForm({ type, categories, onAddTransaction }: Transact
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+                value={field.value} // Ensure value is controlled for reset
+              >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder={`Select a ${type} category`} />
+                    <SelectValue placeholder={`Select a ${existingTransaction?.type || type} category`} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -161,25 +193,22 @@ export function TransactionForm({ type, categories, onAddTransaction }: Transact
             </FormItem>
           )}
         />
-        {/* Notes field only for expense by default, this can be changed */}
-        {(type === "expense" || type === "income") && ( // Show notes for both income and expense
-          <FormField
-            control={form.control}
-            name="notes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Notes (Optional)</FormLabel>
-                <FormControl>
-                  <Textarea placeholder={`Add any notes for this ${type}...`} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Notes (Optional)</FormLabel>
+              <FormControl>
+                <Textarea placeholder={`Add any notes for this ${existingTransaction?.type || type}...`} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Add {type.charAt(0).toUpperCase() + type.slice(1)}
+          {formMode === 'edit' ? <Edit3 className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+          {formMode === 'edit' ? 'Update Transaction' : `Add ${type.charAt(0).toUpperCase() + type.slice(1)}`}
         </Button>
       </form>
     </Form>
