@@ -14,7 +14,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, UserCircle, Edit3, Camera } from "lucide-react";
 import { updateProfile } from "firebase/auth";
-import { auth } from "@/lib/firebase"; // Removed storage import
+import { auth, storage } from "@/lib/firebase";
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
 import { useRouter } from "next/navigation";
 
 const profileSchema = z.object({
@@ -24,12 +25,14 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export default function ProfilePage() {
-  const { user, loading: authLoading, setUser } = useAuth(); // Assuming setUser is available from context to reflect changes immediately
+  const { user, loading: authLoading, setUser } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmittingName, setIsSubmittingName] = React.useState(false);
   const [isUploadingImage, setIsUploadingImage] = React.useState(false);
-  const [localPhotoURL, setLocalPhotoURL] = React.useState<string | null | undefined>(null);
+  const [localPhotoPreview, setLocalPhotoPreview] = React.useState<string | null | undefined>(null); // For optimistic UI update
+  const [uploadProgress, setUploadProgress] = React.useState<number | null>(null);
+
 
   const {
     register,
@@ -46,7 +49,7 @@ export default function ProfilePage() {
     }
     if (user) {
       setValue("displayName", user.displayName || "");
-      setLocalPhotoURL(user.photoURL);
+      setLocalPhotoPreview(user.photoURL);
     }
   }, [user, authLoading, setValue, router]);
 
@@ -55,11 +58,9 @@ export default function ProfilePage() {
     setIsSubmittingName(true);
     try {
       await updateProfile(auth.currentUser, { displayName: data.displayName });
-      // Manually update user in context if setUser is available and needed for immediate reflection
       if (setUser && auth.currentUser) {
-         const updatedUser = { ...auth.currentUser, displayName: data.displayName };
-         // This is a simplified update; a more robust solution might re-fetch or merge user data.
-         // For now, we rely on onAuthStateChanged to eventually pick it up or a page refresh.
+        const updatedUserContext = { ...user, displayName: data.displayName };
+        setUser(updatedUserContext); // Update context
       }
       toast({ title: "Profile Updated", description: "Your display name has been updated." });
     } catch (error: any) {
@@ -79,52 +80,69 @@ export default function ProfilePage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const maxSize = 200 * 1024; // 200KB limit
+    const maxSize = 1 * 1024 * 1024; // 1MB limit
     if (file.size > maxSize) {
         toast({
             title: "File Too Large",
-            description: `Profile picture cannot exceed ${maxSize / 1024}KB.`,
+            description: `Profile picture cannot exceed ${maxSize / (1024 * 1024)}MB.`,
             variant: "destructive",
         });
         return;
     }
 
     setIsUploadingImage(true);
-    
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64DataUri = reader.result as string;
-      setLocalPhotoURL(base64DataUri); // Show local preview
+    setUploadProgress(0);
 
-      try {
-        await updateProfile(auth.currentUser!, { photoURL: base64DataUri });
-        // Manually update user in context if setUser is available for immediate reflection
-        if (setUser && auth.currentUser) {
-            const updatedUser = { ...auth.currentUser, photoURL: base64DataUri };
-             // This is a simplified update.
-        }
-        toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
-      } catch (error: any) {
-        setLocalPhotoURL(user.photoURL); // Revert to old image on error
+    // Show local preview immediately
+    const reader = new FileReader();
+    reader.onload = (e) => setLocalPhotoPreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+
+    const storageRef = ref(storage, `profileImages/${user.uid}/${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on(
+      "state_changed",
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setUploadProgress(progress);
+      },
+      (error) => {
+        setIsUploadingImage(false);
+        setUploadProgress(null);
+        setLocalPhotoPreview(user.photoURL); // Revert preview on error
         toast({
-          title: "Image Update Failed",
-          description: error.message || "Could not save new profile picture.",
+          title: "Upload Failed",
+          description: error.message || "Could not upload image.",
           variant: "destructive",
         });
-        console.error("Error updating profile image:", error);
-      } finally {
-        setIsUploadingImage(false);
-      }
-    };
-    reader.onerror = () => {
-        toast({
-            title: "File Read Error",
-            description: "Could not read the selected image file.",
+        console.error("Error uploading image:", error);
+      },
+      async () => {
+        try {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          await updateProfile(auth.currentUser!, { photoURL: downloadURL });
+
+          if (setUser && auth.currentUser) {
+             const updatedUserContext = { ...user, photoURL: downloadURL };
+             setUser(updatedUserContext); // Update context
+          }
+          setLocalPhotoPreview(downloadURL); // Ensure preview is the final URL
+          toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
+        } catch (error: any) {
+          setLocalPhotoPreview(user.photoURL); // Revert preview on error
+          toast({
+            title: "Image Update Failed",
+            description: error.message || "Could not save new profile picture URL.",
             variant: "destructive",
-        });
-        setIsUploadingImage(false);
-    }
-    reader.readAsDataURL(file);
+          });
+          console.error("Error updating profile with new image URL:", error);
+        } finally {
+          setIsUploadingImage(false);
+          setUploadProgress(null);
+        }
+      }
+    );
   };
 
   const getInitials = (name?: string | null) => {
@@ -150,7 +168,7 @@ export default function ProfilePage() {
         <CardHeader className="items-center text-center">
           <div className="relative group mb-6">
             <Avatar className="h-32 w-32 border-4 border-primary/50 group-hover:opacity-80 transition-opacity">
-              <AvatarImage src={localPhotoURL || undefined} alt={user.displayName || user.email || "User"} />
+              <AvatarImage src={localPhotoPreview || undefined} alt={user.displayName || user.email || "User"} />
               <AvatarFallback className="text-4xl">
                 {getInitials(user.displayName)}
               </AvatarFallback>
@@ -173,8 +191,18 @@ export default function ProfilePage() {
               onChange={handleImageUpload}
               disabled={isUploadingImage}
             />
+             {isUploadingImage && uploadProgress !== null && (
+              <div className="absolute bottom-[-20px] left-0 right-0 px-2">
+                <div className="w-full bg-muted rounded-full h-1.5">
+                  <div
+                    className="bg-primary h-1.5 rounded-full transition-all duration-150"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
           </div>
-          <CardTitle className="text-3xl font-headline flex items-center">
+          <CardTitle className="text-3xl font-headline flex items-center mt-4">
             <UserCircle className="mr-3 h-8 w-8 text-primary" />
             Edit Profile
           </CardTitle>
