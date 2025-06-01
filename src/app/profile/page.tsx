@@ -39,8 +39,9 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-const MAX_FILE_SIZE_MB = 2;
+const MAX_FILE_SIZE_MB = 0.7; // Reduced to prevent Firestore 1MB field limit for Base64
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const FIRESTORE_STRING_FIELD_MAX_BYTES = 1048487; // Firestore's limit for a string field
 
 export default function ProfilePage() {
   const { user, loading: authLoading, setUser, userPreferences, setUserPreferences } = useAuth();
@@ -134,21 +135,20 @@ export default function ProfilePage() {
     if (!user || !auth.currentUser) return;
     const file = event.target.files?.[0];
     
-    // Keep a reference to event.target to clear it later
     const currentTarget = event.currentTarget;
 
     if (!file) {
-      if (currentTarget) (currentTarget as HTMLInputElement).value = ""; // Clear input if no file selected
+      if (currentTarget) (currentTarget as HTMLInputElement).value = "";
       return;
     }
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
       toast({
         title: "File Too Large",
-        description: `Profile picture cannot exceed ${MAX_FILE_SIZE_MB}MB.`,
+        description: `Profile picture file cannot exceed ${MAX_FILE_SIZE_MB}MB.`,
         variant: "destructive",
       });
-      if (currentTarget) (currentTarget as HTMLInputElement).value = ""; // Clear input
+      if (currentTarget) (currentTarget as HTMLInputElement).value = "";
       return;
     }
 
@@ -167,7 +167,21 @@ export default function ProfilePage() {
     };
     reader.onloadend = async () => {
       const base64DataUri = reader.result as string;
-      setLocalPhotoPreview(base64DataUri);
+
+      // Check if Base64 string exceeds Firestore's limit
+      if (base64DataUri.length > FIRESTORE_STRING_FIELD_MAX_BYTES) {
+        toast({
+          title: "Image Data Too Large For Storage",
+          description: "The selected image, after encoding, is too large to store. Please choose a smaller file (approx. 0.7MB or less).",
+          variant: "destructive",
+        });
+        setIsUploadingImage(false);
+        setUploadProgress(0);
+        if (currentTarget) (currentTarget as HTMLInputElement).value = "";
+        return;
+      }
+      
+      setLocalPhotoPreview(base64DataUri); // Show preview immediately
       setUploadProgress(80);
 
       try {
@@ -181,36 +195,38 @@ export default function ProfilePage() {
           setUserPreferences(prev => ({ ...prev!, ...newPreferences }));
         }
         
+        // Attempt to update Firebase Auth photoURL, but be mindful of its own limits for data URIs
         try {
           await updateProfile(auth.currentUser!, { photoURL: base64DataUri });
           if (setUser && auth.currentUser) {
             setUser(prevState => ({...prevState!, photoURL: auth.currentUser?.photoURL}));
           }
         } catch (authError: any) {
-          console.warn("Failed to update Firebase Auth photoURL (might be too long):", authError.message);
+          console.warn("Failed to update Firebase Auth photoURL (might be too long or other issue):", authError.message);
+          // Non-critical if this fails, Firestore is primary
            toast({
-            title: "Auth Photo Not Updated",
-            description: "Image saved to profile, but Firebase Auth photo might be unchanged (possibly due to length).",
+            title: "Profile Image Updated (Firestore)",
+            description: "Auth photoURL might not have updated if image data was too long for it.",
             variant: "default",
             duration: 5000,
           });
         }
         
-        setLocalPhotoPreview(base64DataUri);
+        setLocalPhotoPreview(base64DataUri); // Confirm local preview
         toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
         setUploadProgress(100);
       } catch (error: any) {
-        setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null);
+        setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null); // Revert preview on error
         toast({
           title: "Image Update Failed",
-          description: error.message || "Could not save new profile picture.",
+          description: error.message || "Could not save new profile picture to Firestore.",
           variant: "destructive",
         });
         console.error("Error updating profile with new image:", error);
         setUploadProgress(0);
       } finally {
         setIsUploadingImage(false);
-        if (currentTarget) (currentTarget as HTMLInputElement).value = ""; // Clear the input value
+        if (currentTarget) (currentTarget as HTMLInputElement).value = ""; 
       }
     };
     reader.onerror = () => {
@@ -221,7 +237,7 @@ export default function ProfilePage() {
         description: "Could not read the selected file.",
         variant: "destructive",
       });
-      if (currentTarget) (currentTarget as HTMLInputElement).value = ""; // Clear input
+      if (currentTarget) (currentTarget as HTMLInputElement).value = "";
     };
     reader.readAsDataURL(file);
   };
@@ -294,7 +310,7 @@ export default function ProfilePage() {
               <UserCircle className="mr-3 h-8 w-8 text-primary" />
               Edit Profile
             </CardTitle>
-            <CardDescription>Update your display name, profile picture (max {MAX_FILE_SIZE_MB}MB), currency, and monthly budgets.</CardDescription>
+            <CardDescription>Update your display name, profile picture (max {MAX_FILE_SIZE_MB}MB file, smaller for storage), currency, and monthly budgets.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-8">
             <Form {...form}>
@@ -401,3 +417,5 @@ export default function ProfilePage() {
     
 
       
+
+    
