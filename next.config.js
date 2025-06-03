@@ -1,12 +1,23 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Disable source maps in both production and development
+  // Disable source maps in production
   productionBrowserSourceMaps: false,
-  // This disables source maps in development without using webpack config
-  experimental: {
-    // This is compatible with both webpack and Turbopack
-    sourceMaps: false
+  
+  // Webpack configuration (for webpack bundler)
+  webpack: (config, { dev, isServer }) => {
+    // Disable source maps in development to prevent source map errors
+    if (dev && !isServer) {
+      config.devtool = false;
+    }
+    return config;
+  },
+  
+  // Turbopack configuration (Next.js 14+)
+  config: {
+    turbopack: {
+      resolveSourceMap: false
+    }
   }
 };
 

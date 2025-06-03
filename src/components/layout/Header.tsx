@@ -37,9 +37,9 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center">
-          <Gauge className="h-8 w-8 text-primary mr-3" /> {/* Changed Leaf to Gauge */}
-          <h1 className="text-3xl font-headline font-bold">SpendSense</h1> {/* Changed BudgetWise to SpendSense */}
+        <Link href="/" className="flex items-center group">
+          <Gauge className="h-8 w-8 text-primary mr-3 transition-transform group-hover:scale-110" />
+          <h1 className="text-3xl font-headline font-bold text-primary">SpendSense</h1>
         </Link>
         
         <div className="flex items-center gap-2">

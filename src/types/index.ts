@@ -10,6 +10,7 @@ export interface Transaction {
   date: string; // ISO string date for consistency
   amount: number;
   notes?: string;
+  description?: string; // Optional description field
 }
 
 export interface FirestoreTransaction extends Omit<Transaction, 'id' | 'date'> {
@@ -39,5 +40,3 @@ export interface UserPreferences {
   budgets?: UserBudget;
   // profileImageStoragePath?: string | null; // This field is no longer used
 }
-
-    

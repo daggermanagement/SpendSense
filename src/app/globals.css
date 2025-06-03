@@ -95,6 +95,7 @@
 
 /* Custom utility classes for rich visuals */
 @layer components {
+  /* Card styling */
   .card-gradient {
     @apply bg-gradient-to-br from-card to-card/90 dark:from-card dark:to-card/70;
   }
@@ -107,6 +108,24 @@
     @apply card-gradient shadow-lg rounded-lg border border-border/50 card-hover;
   }
   
+  /* Background gradients */
+  .bg-gradient-primary {
+    @apply bg-gradient-to-br from-background to-muted/30 dark:from-background dark:to-background/60;
+  }
+  
+  .bg-gradient-subtle {
+    @apply bg-gradient-to-br from-background via-background to-muted/50 dark:from-background dark:via-background/95 dark:to-muted/20;
+  }
+  
+  .bg-gradient-vibrant {
+    @apply bg-gradient-to-br from-background via-primary/5 to-secondary/5 dark:from-background dark:via-primary/10 dark:to-secondary/10;
+  }
+  
+  .bg-gradient-accent {
+    @apply bg-gradient-to-br from-background via-background to-accent/10 dark:from-background dark:via-background/95 dark:to-accent/10;
+  }
+  
+  /* Special effects */
   .glass-effect {
     @apply bg-white/80 dark:bg-black/50 backdrop-blur-sm;
   }
@@ -115,6 +134,7 @@
     @apply relative text-primary font-semibold after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-gradient-to-r after:from-primary after:to-secondary;
   }
   
+  /* Animations */
   .animate-fade-in {
     animation: fadeIn 0.5s ease-in-out;
   }

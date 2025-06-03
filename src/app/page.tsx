@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, Loader2 } from "lucide-react";
+import { Share2, Loader2, BarChart3, TrendingUp, DollarSign, ArrowUpDown, Sparkles, PlusCircle, Download, Mail, Copy, Printer, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription as ShadcnCardDescription } from "@/components/ui/card";
 import { TransactionForm } from "@/components/budgetwise/transaction-form";
@@ -16,6 +16,7 @@ import { SpendingTrends } from "@/components/budgetwise/spending-trends";
 import { BudgetComparison } from "@/components/budgetwise/budget-comparison";
 import { CategoryDrillDown } from "@/components/budgetwise/category-drill-down";
 import { FinancialHealth } from "@/components/budgetwise/financial-health";
+import { ExportDashboard } from "@/components/budgetwise/export-dashboard";
 import type { Transaction } from "@/types";
 import { allCategories } from "@/types";
 import {
@@ -42,6 +43,7 @@ export default function SpendSensePage() { // Renamed component
   const [dataLoading, setDataLoading] = React.useState(true);
   const [activeDialog, setActiveDialog] = React.useState<'income' | 'expense' | null>(null);
   const [activeTab, setActiveTab] = React.useState("overview");
+  const [showExportDialog, setShowExportDialog] = React.useState(false);
 
   const currency = React.useMemo(() => userPreferences?.currency || DEFAULT_CURRENCY, [userPreferences]);
 
@@ -187,7 +189,31 @@ export default function SpendSensePage() { // Renamed component
         </div>
       </div>
       
-      <div className="w-full">
+      <div className="w-full relative">
+        {/* Export/Share Dashboard Button */}
+        <Button 
+          variant="default"
+          className="fixed bottom-8 right-8 z-10 shadow-lg rounded-full h-14 w-14 p-0"
+          onClick={() => setShowExportDialog(true)}
+        >
+          <Share2 className="h-6 w-6" />
+        </Button>
+        
+        {/* Export/Share Dashboard Dialog */}
+        {showExportDialog && (
+          <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+            <DialogContent className="sm:max-w-[800px] p-0">
+              <DialogTitle className="sr-only">Export & Share Dashboard</DialogTitle>
+              <ExportDashboard 
+                userName={user?.displayName || undefined}
+                transactions={transactions}
+                currency={currency}
+                onClose={() => setShowExportDialog(false)} 
+              />
+            </DialogContent>
+          </Dialog>
+        )}
+        
         {activeTab === "overview" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
           <div className="lg:col-span-2 space-y-8">

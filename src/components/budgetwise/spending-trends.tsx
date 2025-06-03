@@ -225,7 +225,7 @@ export function SpendingTrends({ transactions }: SpendingTrendsProps) {
           </div>
         )}
         
-        <div className="h-[400px] w-full">
+        <div id="spending-trends-chart" className="h-[400px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={trendData}

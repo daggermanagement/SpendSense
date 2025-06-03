@@ -2,5 +2,6 @@
     "IDX.aI.enableInlineCompletion": true,
     "IDX.aI.enableCodebaseIndexing": true,
     "CodeGPT.apiKey": "CodeGPT Plus Beta",
-    "zencoder.enableRepoIndexing": true
+    "zencoder.enableRepoIndexing": true,
+    "Codegeex.RepoIndex": true
 }

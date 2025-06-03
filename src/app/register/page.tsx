@@ -75,15 +75,15 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-gradient-to-br from-background to-muted/30 selection:bg-primary/20 selection:text-primary py-6 sm:py-8">
+    <div className="flex flex-1 flex-col items-center justify-center bg-gradient-accent selection:bg-primary/20 selection:text-primary py-6 sm:py-8">
       <div className="w-full max-w-md px-4">
          <div className="flex justify-center mb-6">
-          <Gauge className="h-16 w-16 text-primary drop-shadow-lg" /> {/* Changed Leaf to Gauge */}
+          <Gauge className="h-16 w-16 text-primary drop-shadow-lg" />
         </div>
-        <Card className="shadow-2xl rounded-xl">
+        <Card className="card-gradient shadow-2xl rounded-xl border border-border/50">
           <CardHeader className="text-center space-y-2 pt-8">
-            <CardTitle className="text-3xl font-headline tracking-tight">Create Your Account</CardTitle>
-            <CardDescription className="text-md">Join SpendSense and take control of your finances.</CardDescription> {/* Changed BudgetWise to SpendSense */}
+            <CardTitle className="text-3xl font-headline tracking-tight text-primary">Create Your Account</CardTitle>
+            <CardDescription className="text-md">Join SpendSense and take control of your finances.</CardDescription>
           </CardHeader>
           <CardContent className="py-6 px-8">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">

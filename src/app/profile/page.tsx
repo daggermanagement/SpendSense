@@ -251,12 +251,13 @@ export default function ProfilePage() {
             Back
           </Button>
         </div>
-        <Card className="shadow-xl">
+        <Card className="card-gradient shadow-xl border border-border/50">
           <CardHeader className="items-center text-center">
             <div className="relative group mb-6">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary to-secondary blur-md opacity-30 -z-10 scale-110"></div>
               <Avatar key={localPhotoPreview || 'avatar-placeholder-key'} className="h-32 w-32 border-4 border-primary/50 group-hover:opacity-80 transition-opacity">
                 <AvatarImage src={localPhotoPreview || undefined} alt={user.displayName || user.email || "User"} />
-                <AvatarFallback className="text-4xl">
+                <AvatarFallback className="text-4xl bg-muted">
                   {getInitials(user.displayName)}
                 </AvatarFallback>
               </Avatar>

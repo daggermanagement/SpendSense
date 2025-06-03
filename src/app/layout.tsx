@@ -30,9 +30,9 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <AlertProvider>
-              <div className="flex flex-col min-h-screen bg-background">
+              <div className="flex flex-col min-h-screen">
                 <Header />
-                <main className="flex flex-col flex-1">
+                <main className="flex flex-col flex-1 bg-gradient-vibrant">
                   {children}
                 </main>
                 <SiteFooter />
