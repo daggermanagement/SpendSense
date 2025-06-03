@@ -187,7 +187,7 @@ export default function ProfilePage() {
         try {
           await updateProfile(auth.currentUser!, { photoURL: base64DataUri });
           if (setUser && auth.currentUser) {
-            setUser(prevState => ({...prevState!, photoURL: auth.currentUser?.photoURL}));
+            setUser(prevState => ({...prevState!, photoURL: auth.currentUser?.photoURL || null}));
           }
         } catch (authError: any) {
           console.warn("Failed to update Firebase Auth photoURL (might be too long or other issue):", authError.message);
