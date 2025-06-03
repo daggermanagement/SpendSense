@@ -144,58 +144,113 @@ export const themes: AppTheme[] = [
     },
   },
   {
-    name: "Forest Green",
+    name: "Midnight Gold",
     light: {
-      background: "100 30% 95%",
-      foreground: "120 60% 15%",
-      card: "100 25% 98%",
-      cardForeground: "120 60% 15%",
-      popover: "100 25% 98%",
-      popoverForeground: "120 60% 15%",
-      primary: "90 55% 45%",
-      primaryForeground: "90 100% 95%",
-      secondary: "100 20% 88%",
-      secondaryForeground: "120 60% 15%",
-      muted: "100 20% 88%",
-      mutedForeground: "110 40% 40%",
-      accent: "40 60% 50%",
-      accentForeground: "40 100% 5%",
+      background: "0 0% 98%",
+      foreground: "0 0% 10%",
+      card: "0 0% 100%",
+      cardForeground: "0 0% 10%",
+      popover: "0 0% 100%",
+      popoverForeground: "0 0% 10%",
+      primary: "46 77% 52%", // Golden Pitch #D4AF37
+      primaryForeground: "0 0% 100%",
+      secondary: "45 70% 45%",
+      secondaryForeground: "0 0% 100%",
+      muted: "0 0% 95%",
+      mutedForeground: "0 0% 45%",
+      accent: "46 77% 52%",
+      accentForeground: "0 0% 100%",
       destructive: "0 75% 50%",
       destructiveForeground: "0 0% 98%",
-      border: "100 20% 80%",
-      input: "100 20% 82%",
-      ring: "90 55% 55%",
-      chart1: "90 55% 45%", // primary
-      chart2: "40 60% 50%", // accent
-      chart3: "110 45% 50%", // another green
-      chart4: "70 40% 55%", // a lighter, yellowish green
-      chart5: "25 30% 45%", // a muted brown
+      border: "0 0% 90%",
+      input: "0 0% 90%",
+      ring: "46 77% 52%",
+      chart1: "46 77% 52%", // Golden
+      chart2: "36 80% 45%", // Amber
+      chart3: "26 75% 50%", // Orange-gold
+      chart4: "16 70% 55%", // Light bronze
+      chart5: "56 65% 45%", // Yellow-gold
     },
     dark: {
-      background: "120 60% 8%",
-      foreground: "100 30% 85%",
-      card: "120 60% 10%",
-      cardForeground: "100 30% 85%",
-      popover: "120 60% 10%",
-      popoverForeground: "100 30% 85%",
-      primary: "90 45% 50%",
-      primaryForeground: "90 100% 5%",
-      secondary: "110 40% 18%",
-      secondaryForeground: "100 30% 85%",
-      muted: "110 40% 18%",
-      mutedForeground: "100 20% 65%",
-      accent: "40 50% 55%",
-      accentForeground: "40 100% 95%",
+      background: "0 0% 7%", // Dark #121212
+      foreground: "0 0% 95%",
+      card: "0 0% 10%",
+      cardForeground: "0 0% 95%",
+      popover: "0 0% 10%",
+      popoverForeground: "0 0% 95%",
+      primary: "46 77% 52%", // Golden Pitch #D4AF37
+      primaryForeground: "0 0% 10%",
+      secondary: "45 70% 45%",
+      secondaryForeground: "0 0% 10%",
+      muted: "0 0% 15%",
+      mutedForeground: "0 0% 65%",
+      accent: "46 77% 52%",
+      accentForeground: "0 0% 10%",
       destructive: "0 65% 40%",
       destructiveForeground: "0 0% 98%",
-      border: "110 40% 22%",
-      input: "110 40% 20%",
-      ring: "90 45% 40%",
-      chart1: "90 45% 50%",
-      chart2: "40 50% 55%",
-      chart3: "110 45% 60%",
-      chart4: "70 40% 65%",
-      chart5: "25 30% 55%",
+      border: "0 0% 20%",
+      input: "0 0% 15%",
+      ring: "46 77% 52%",
+      chart1: "46 77% 52%", // Golden
+      chart2: "36 80% 45%", // Amber
+      chart3: "26 75% 50%", // Orange-gold
+      chart4: "16 70% 55%", // Light bronze
+      chart5: "56 65% 45%", // Yellow-gold
+    },
+  },
+  {
+    name: "Sunset Orange",
+    light: {
+      background: "36 100% 97%", // Cream #FFF9F0
+      foreground: "15 80% 20%",
+      card: "36 100% 99%",
+      cardForeground: "15 80% 20%",
+      popover: "36 100% 99%",
+      popoverForeground: "15 80% 20%",
+      primary: "14 100% 60%", // Power Orange #FF6B35
+      primaryForeground: "0 0% 100%",
+      secondary: "24 90% 55%",
+      secondaryForeground: "0 0% 100%",
+      muted: "36 50% 94%",
+      mutedForeground: "15 30% 40%",
+      accent: "14 100% 60%",
+      accentForeground: "0 0% 100%",
+      destructive: "0 75% 50%",
+      destructiveForeground: "0 0% 98%",
+      border: "36 30% 90%",
+      input: "36 30% 90%",
+      ring: "14 100% 60%",
+      chart1: "14 100% 60%", // Orange
+      chart2: "24 90% 55%", // Orange-yellow
+      chart3: "4 85% 60%", // Red-orange
+      chart4: "34 80% 55%", // Yellow-orange
+      chart5: "44 75% 50%", // Yellow
+    },
+    dark: {
+      background: "15 80% 10%",
+      foreground: "36 30% 90%",
+      card: "15 80% 12%",
+      cardForeground: "36 30% 90%",
+      popover: "15 80% 12%",
+      popoverForeground: "36 30% 90%",
+      primary: "14 100% 60%", // Power Orange #FF6B35
+      primaryForeground: "0 0% 10%",
+      secondary: "24 90% 55%",
+      secondaryForeground: "0 0% 10%",
+      muted: "15 30% 18%",
+      mutedForeground: "36 20% 70%",
+      accent: "14 100% 60%",
+      accentForeground: "0 0% 10%",
+      destructive: "0 65% 40%",
+      destructiveForeground: "0 0% 98%",
+      border: "15 30% 20%",
+      input: "15 30% 18%",
+      ring: "14 100% 60%",
+      chart1: "14 100% 60%", // Orange
+      chart2: "24 90% 55%", // Orange-yellow
+      chart3: "4 85% 60%", // Red-orange
+      chart4: "34 80% 55%", // Yellow-orange
+      chart5: "44 75% 50%", // Yellow
     },
   },
 ];

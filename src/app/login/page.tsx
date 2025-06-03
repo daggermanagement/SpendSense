@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { useAlert } from "@/contexts/AlertContext";
 import { Gauge, Loader2 } from "lucide-react"; // Changed Leaf to Gauge
 
 const loginSchema = z.object({
@@ -32,7 +32,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { toast } = useToast();
+  const { success, error } = useAlert();
   const [isLoading, setIsLoading] = React.useState(false);
 
   const {
@@ -47,22 +47,18 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
-      toast({ title: "Login Successful", description: "Welcome back to SpendSense!" }); // Changed BudgetWise to SpendSense
+      success("Welcome back to SpendSense!", "Login Successful");
       router.push("/");
-    } catch (error: any) {
+    } catch (err: any) {
       let errorMessage = "An unexpected error occurred. Please try again.";
-      if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+      if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
         errorMessage = "Invalid email or password. Please check your credentials.";
-      } else if (error.code === "auth/too-many-requests") {
+      } else if (err.code === "auth/too-many-requests") {
         errorMessage = "Too many login attempts. Please try again later.";
-      } else if (error.message) {
-        errorMessage = error.message;
+      } else if (err.message) {
+        errorMessage = err.message;
       }
-      toast({
-        title: "Login Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      error(errorMessage, "Login Failed");
     } finally {
       setIsLoading(false);
     }

@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { useAlert } from "@/contexts/AlertContext";
 import { Gauge, Loader2, User } from "lucide-react"; // Changed Leaf to Gauge
 
 const registerSchema = z.object({
@@ -37,7 +37,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { toast } = useToast();
+  const { success, error } = useAlert();
   const [isLoading, setIsLoading] = React.useState(false);
 
   const {
@@ -57,25 +57,18 @@ export default function RegisterPage() {
           displayName: data.displayName,
         });
       }
-      toast({ 
-        title: "Registration Successful!", 
-        description: `Welcome, ${data.displayName}! Please log in to continue.` 
-      });
+      success(`Welcome, ${data.displayName}! Please log in to continue.`, "Registration Successful!");
       router.push("/login");
-    } catch (error: any) {
+    } catch (err: any) {
       let errorMessage = "An unexpected error occurred. Please try again.";
-      if (error.code === 'auth/email-already-in-use') {
+      if (err.code === 'auth/email-already-in-use') {
         errorMessage = "This email address is already registered. Try logging in.";
-      } else if (error.code === 'auth/weak-password') {
+      } else if (err.code === 'auth/weak-password') {
         errorMessage = "The password is too weak. Please choose a stronger password.";
-      } else if (error.message) {
-        errorMessage = error.message;
+      } else if (err.message) {
+        errorMessage = err.message;
       }
-      toast({
-        title: "Registration Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      error(errorMessage, "Registration Failed");
     } finally {
       setIsLoading(false);
     }

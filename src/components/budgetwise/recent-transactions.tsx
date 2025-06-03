@@ -78,7 +78,7 @@ export function RecentTransactions({
 
   if (transactions.length === 0 && !authLoading) { // Ensure not to show "No transactions" during initial load
     return (
-       <Card className="shadow-lg mt-8">
+       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline text-2xl flex items-center">
             <ListChecks className="mr-2 h-6 w-6 text-primary" />
@@ -94,7 +94,7 @@ export function RecentTransactions({
   }
 
   return (
-    <Card className="shadow-lg mt-8">
+    <Card className="shadow-lg">
       <CardHeader>
         <CardTitle className="font-headline text-2xl flex items-center">
            <ListChecks className="mr-2 h-6 w-6 text-primary" />

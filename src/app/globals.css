@@ -5,8 +5,8 @@
 
 @layer base {
   :root {
-    /* Default Fallback Theme (Light) - These will be overridden by JS */
-    --background: 0 0% 98%; /* #FAFAFA */
+    /* Enhanced Light Theme with Rich Visuals */
+    --background: 210 50% 98%; /* Slightly blue tinted background */
     --foreground: 222.2 84% 4.9%; 
 
     --card: 0 0% 100%;
@@ -15,68 +15,71 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 120 73% 75%; 
-    --primary-foreground: 120 100% 10%;
+    --primary: 220 70% 50%; /* Rich blue primary */
+    --primary-foreground: 210 40% 98%;
     
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 84% 4.9%;
+    --secondary: 280 60% 60%; /* Purple secondary */
+    --secondary-foreground: 210 40% 98%;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 224 7.1% 44.1%;
 
-    --accent: 195 53% 79%; 
-    --accent-foreground: 195 100% 15%;
+    --accent: 30 80% 55%; /* Warm orange accent */
+    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 120 73% 65%;
+    --ring: 220 70% 50%;
 
-    --chart-1: 120 73% 75%;
-    --chart-2: 195 53% 79%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    /* Vibrant chart colors */
+    --chart-1: 220 70% 50%; /* Blue */
+    --chart-2: 280 60% 60%; /* Purple */
+    --chart-3: 30 80% 55%;  /* Orange */
+    --chart-4: 160 70% 45%; /* Teal */
+    --chart-5: 340 75% 55%; /* Pink */
     
-    --radius: 0.5rem;
+    --radius: 0.75rem; /* Slightly larger radius */
   }
 
-  /* Base dark mode structural styles if JS fails or for non-color aspects */
+  /* Enhanced Dark Theme with Rich Visuals */
   .dark {
-     /* These are fallbacks if JS doesn't set specific dark theme colors */
-    --background: 222.2 84% 4.9%;
+    --background: 222.2 47% 11%; /* Rich dark background */
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 222.2 47% 14%; /* Slightly lighter than background */
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 222.2 47% 11%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 120 73% 75%; /* Default dark primary */
-    --primary-foreground: 120 100% 10%; /* Default dark primary foreground */
+    --primary: 220 70% 50%; /* Rich blue primary */
+    --primary-foreground: 210 40% 98%;
     
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 280 60% 60%; /* Purple secondary */
     --secondary-foreground: 210 40% 98%;
 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 195 53% 79%; /* Default dark accent */
-    --accent-foreground: 195 100% 15%; /* Default dark accent foreground */
+    --accent: 30 80% 55%; /* Warm orange accent */
+    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 120 73% 65%; /* Default dark ring */
+    --ring: 220 70% 50%;
 
-    --chart-1: 120 73% 75%;
-    --chart-2: 195 53% 79%;
-    /* Chart colors might need specific dark versions if not handled by theme object */
+    /* Vibrant chart colors for dark mode */
+    --chart-1: 220 70% 50%; /* Blue */
+    --chart-2: 280 60% 60%; /* Purple */
+    --chart-3: 30 80% 55%;  /* Orange */
+    --chart-4: 160 70% 45%; /* Teal */
+    --chart-5: 340 75% 55%; /* Pink */
   }
 }
 
@@ -88,4 +91,54 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+}
+
+/* Custom utility classes for rich visuals */
+@layer components {
+  .card-gradient {
+    @apply bg-gradient-to-br from-card to-card/90 dark:from-card dark:to-card/70;
+  }
+  
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  }
+  
+  .card-rich {
+    @apply card-gradient shadow-lg rounded-lg border border-border/50 card-hover;
+  }
+  
+  .glass-effect {
+    @apply bg-white/80 dark:bg-black/50 backdrop-blur-sm;
+  }
+  
+  .tab-active {
+    @apply relative text-primary font-semibold after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-gradient-to-r after:from-primary after:to-secondary;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out;
+  }
+  
+  .animate-pulse-subtle {
+    animation: pulseSlow 3s infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes pulseSlow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
 }

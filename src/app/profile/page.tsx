@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useToast } from "@/hooks/use-toast";
+import { useAlert } from "@/contexts/AlertContext";
 import { Loader2, UserCircle, Camera, Save, DollarSign, ArrowLeft } from "lucide-react";
 import { updateProfile } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
@@ -45,7 +45,7 @@ const FIRESTORE_STRING_FIELD_MAX_BYTES = 1048487; // Firestore's limit for a str
 
 export default function ProfilePage() {
   const { user, loading: authLoading, setUser, userPreferences, setUserPreferences } = useAuth();
-  const { toast } = useToast();
+  const { success, error, warning } = useAlert();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isUploadingImage, setIsUploadingImage] = React.useState(false);
@@ -118,14 +118,10 @@ export default function ProfilePage() {
          }
       }
 
-      toast({ title: "Profile Settings Updated", description: "Your display name, currency, and budgets have been updated." });
-    } catch (error: any) {
-      toast({
-        title: "Settings Update Failed",
-        description: error.message || "Could not update profile settings.",
-        variant: "destructive",
-      });
-      console.error("Error updating profile settings:", error);
+      success("Your display name, currency, and budgets have been updated.", "Profile Settings Updated");
+    } catch (err: any) {
+      error(err.message || "Could not update profile settings.", "Settings Update Failed");
+      console.error("Error updating profile settings:", err);
     } finally {
       setIsSubmitting(false);
     }
@@ -143,11 +139,7 @@ export default function ProfilePage() {
     }
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      toast({
-        title: "File Too Large",
-        description: `Profile picture file cannot exceed ${MAX_FILE_SIZE_MB}MB.`,
-        variant: "destructive",
-      });
+      warning(`Profile picture file cannot exceed ${MAX_FILE_SIZE_MB}MB.`, "File Too Large");
       if (currentTarget) (currentTarget as HTMLInputElement).value = "";
       return;
     }
@@ -170,11 +162,7 @@ export default function ProfilePage() {
 
       // Check if Base64 string exceeds Firestore's limit
       if (base64DataUri.length > FIRESTORE_STRING_FIELD_MAX_BYTES) {
-        toast({
-          title: "Image Data Too Large For Storage",
-          description: "The selected image, after encoding, is too large to store. Please choose a smaller file (approx. 0.7MB or less).",
-          variant: "destructive",
-        });
+        warning("The selected image, after encoding, is too large to store. Please choose a smaller file (approx. 0.7MB or less).", "Image Data Too Large For Storage");
         setIsUploadingImage(false);
         setUploadProgress(0);
         if (currentTarget) (currentTarget as HTMLInputElement).value = "";
@@ -204,25 +192,15 @@ export default function ProfilePage() {
         } catch (authError: any) {
           console.warn("Failed to update Firebase Auth photoURL (might be too long or other issue):", authError.message);
           // Non-critical if this fails, Firestore is primary
-           toast({
-            title: "Profile Image Updated (Firestore)",
-            description: "Auth photoURL might not have updated if image data was too long for it.",
-            variant: "default",
-            duration: 5000,
-          });
         }
         
         setLocalPhotoPreview(base64DataUri); // Confirm local preview
-        toast({ title: "Profile Picture Updated", description: "Your new profile picture is set." });
+        success("Your new profile picture is set.", "Profile Picture Updated");
         setUploadProgress(100);
-      } catch (error: any) {
+      } catch (err: any) {
         setLocalPhotoPreview(userPreferences?.profileImageBase64 || user.photoURL || null); // Revert preview on error
-        toast({
-          title: "Image Update Failed",
-          description: error.message || "Could not save new profile picture to Firestore.",
-          variant: "destructive",
-        });
-        console.error("Error updating profile with new image:", error);
+        error(err.message || "Could not save new profile picture to Firestore.", "Image Update Failed");
+        console.error("Error updating profile with new image:", err);
         setUploadProgress(0);
       } finally {
         setIsUploadingImage(false);
@@ -232,11 +210,7 @@ export default function ProfilePage() {
     reader.onerror = () => {
       setIsUploadingImage(false);
       setUploadProgress(0);
-      toast({
-        title: "File Read Error",
-        description: "Could not read the selected file.",
-        variant: "destructive",
-      });
+      error("Could not read the selected file.", "File Read Error");
       if (currentTarget) (currentTarget as HTMLInputElement).value = "";
     };
     reader.readAsDataURL(file);

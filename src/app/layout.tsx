@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { AlertProvider } from '@/contexts/AlertContext';
 import { Header } from '@/components/layout/Header';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 
@@ -28,13 +29,16 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <ThemeProvider>
           <AuthProvider>
-            <div className="flex flex-col min-h-screen bg-background">
-              <Header />
-              <main className="flex flex-col flex-1">
-                {children}
-              </main>
-              <SiteFooter />
-            </div>
+            <AlertProvider>
+              <div className="flex flex-col min-h-screen bg-background">
+                <Header />
+                <main className="flex flex-col flex-1">
+                  {children}
+                </main>
+                <SiteFooter />
+                <Toaster />
+              </div>
+            </AlertProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
