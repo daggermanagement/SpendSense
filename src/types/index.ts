@@ -1,6 +1,6 @@
 
 import type { Timestamp } from "firebase/firestore";
-import type { CurrencyCode } from "./currencyUtils"; // Assuming currencyUtils types are in a separate file or defined here
+import type { CurrencyCode } from "@/lib/currencyUtils"; // Import from the lib directory
 
 export interface Transaction {
   id: string; // Firestore document ID

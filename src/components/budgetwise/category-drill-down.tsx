@@ -388,7 +388,7 @@ export function CategoryDrillDown({ transactions }: CategoryDrillDownProps) {
                   <BarChart
                     data={categoryData}
                     margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
-                    onClick={(data) => data && handleCategorySelect(data.activePayload[0].payload.category)}
+                    onClick={(data) => data && data.activePayload && data.activePayload.length > 0 && handleCategorySelect(data.activePayload[0].payload.category)}
                   >
                     <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                     <XAxis 

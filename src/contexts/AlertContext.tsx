@@ -41,13 +41,9 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
       info: 'info'
     } as const;
 
+    // Use a simple string for the title to avoid type issues
     toast({
-      title: (
-        <div className="flex items-center gap-2">
-          {icons[type]}
-          <span>{title || defaultTitles[type]}</span>
-        </div>
-      ),
+      title: title || defaultTitles[type],
       description: message,
       variant: variants[type],
     });

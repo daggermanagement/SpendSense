@@ -360,7 +360,6 @@ export function FinancialHealth({ transactions }: FinancialHealthProps) {
                   >
                     <RadialBar
                       background
-                      clockWise
                       dataKey="value"
                       cornerRadius={10}
                       fill="#82ca9d"
